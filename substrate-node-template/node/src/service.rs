@@ -11,6 +11,30 @@ use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use std::{sync::Arc, time::Duration};
 
+#[cfg(feature = "runtime-benchmarks")]
+type ExtendedHostFunctions = (
+	sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions,
+	frame_benchmarking::benchmarking::HostFunctions,
+);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+type ExtendedHostFunctions = sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions;
+
+// Our native executor instance.
+pub struct ExecutorDispatch;
+
+impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
+	type ExtendHostFunctions = ExtendedHostFunctions;
+
+	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+		node_template_runtime::api::dispatch(method, data)
+	}
+
+	fn native_version() -> sc_executor::NativeVersion {
+		node_template_runtime::native_version()
+	}
+}
+
 pub(crate) type FullClient = sc_service::TFullClient<
 	Block,
 	RuntimeApi,

@@ -1,12 +1,25 @@
 use crate as pallet_drand_bridge;
+use crate::*;
 use frame_support::{
 	derive_impl,
-	traits::{ConstU16, ConstU64},
+	traits::{ConstU16, ConstU32, ConstU64},
 };
-use sp_core::H256;
+use crate::*;
+use codec::Decode;
+use frame_support::{assert_ok, parameter_types};
+use sp_core::{
+	offchain::{testing, OffchainWorkerExt, TransactionPoolExt},
+	sr25519::Signature,
+	H256,
+};
+use std::sync::Arc;
+
+use sp_keystore::{KeystoreExt};
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
+	testing::{Header, TestXt},
+	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
+	RuntimeAppPublic,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -31,7 +44,7 @@ impl frame_system::Config for Test {
 	type Nonce = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = sp_core::sr25519::Public;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Block = Block;
 	type RuntimeEvent = RuntimeEvent;
@@ -47,9 +60,43 @@ impl frame_system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+type Extrinsic = TestXt<RuntimeCall, ()>;
+type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+impl frame_system::offchain::SigningTypes for Test {
+	type Public = <Signature as Verify>::Signer;
+	type Signature = Signature;
+}
+
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
+where
+RuntimeCall: From<LocalCall>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+}
+
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
+where
+RuntimeCall: From<LocalCall>,
+{
+	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: RuntimeCall,
+		_public: <Signature as Verify>::Signer,
+		_account: AccountId,
+		nonce: u64,
+	) -> Option<(RuntimeCall, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
+		Some((call, (nonce, ())))
+	}
+}
+
 impl pallet_drand_bridge::Config for Test {
+	type AuthorityId = crypto::TestAuthId;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+	type MaxPulses = ConstU32<2048>;
+	// type PublicKeyGroup = ark_bls12_381::G1Affine;
+	type Verifier = QuicknetVerifier;
 }
 
 // Build genesis storage according to the mock runtime.
