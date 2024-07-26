@@ -1,9 +1,10 @@
 # Drand Bridge Pallet
 
-This is a [FRAME]() pallet that allows Substrate-based chains to bridge to drand. Currently, it only supports bridging to drand's [Quicknet](), which provides fresh randomness every 3 seconds.
+This is a [FRAME](https://docs.substrate.io/reference/frame-pallets/) pallet that allows Substrate-based chains to bridge to drand. It only supports bridging to drand's [Quicknet](https://drand.love/blog/quicknet-is-live-on-the-league-of-entropy-mainnet), which provides fresh randomness every 3 seconds. Adding this pallet to a runtime allows it to acquire verifiable on-chain randomness which can be used in runtime modules or ink! smart contracts. 
 
 ## Usage
 
+### For Pallets
 This pallet implement the [Randomness]() trait. FRAME pallets can use it by configuring their runtimes 
 
 ``` rust
@@ -12,6 +13,15 @@ impl pallet_with_randomness for Runtime {
 }
 ```
 
+Subsequently in your pallet, fetch the latest round randomness with:
+
+``` rust
+let latest_randomness = T::Randomness::random();
+```
+
+### For Smart Contracts
+
+Add the [chain extension]() to your runtime and then follow the guide [here]().
 
 ### Integration
 To use this pallet, add it to a substrate runtime with
@@ -90,13 +100,26 @@ RuntimeCall: From<C>,
 Finally, make sure that your node supports the host functions for the optimized arkworks curves:
 in node/src/ service.rs
 ``` rust
-
+todo
 ```
+
+### Chain Extension
+
+To use the drand bridge pallet's randomness within smart contracts you must add the following chain extension.
+
+``` rust
+todo
+```
+
 ### How it Works
+
+* note: the offchain worker triggers on every block import,regardless of finality....
+
+Drand's quicknet periodically outputs pulses of verifiable randomness every 3 seconds. There are various API's which provide access to the beacon, with this pallet simply using the main `api.drand.sh` URI.
 
 #### Verification
 
-To verify pulses from drand, we check the equality: $e(sig, g2) == e(msg_hash, pk)$ 
+To verify pulses from drand, we check the equality: $e(-sig, g2) == e(m, pk)$ where $m = H(message = Sha256(round))$
 
 ## Testing
 

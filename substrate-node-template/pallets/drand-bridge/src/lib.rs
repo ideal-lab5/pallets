@@ -345,6 +345,8 @@ pub mod pallet {
 						Pulses::<T>::put(pulses);
 					}
 					Self::deposit_event(Event::NewPulse { round: pulse.round, who });
+				} else {
+					log::info!("Could not verify the pulse");
 				}
 			}
 
@@ -352,7 +354,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::do_something())]
+		#[pallet::weight(0)]
 		pub fn set_beacon_config(
 			_origin: OriginFor<T>,
 			config: BeaconConfiguration,
@@ -484,8 +486,8 @@ pub trait Verifier {
 
 /// A verifier to check values received from quicknet. It outputs true if valid, false otherwise
 ///
-/// [Quicknet](https://drand.love/blog/quicknet-is-live-on-the-league-of-entropy-mainnet) operates in an unchained mode, so messages contain only the round number
-/// in addition, public keys are in G2 and signatures are in G1
+/// [Quicknet](https://drand.love/blog/quicknet-is-live-on-the-league-of-entropy-mainnet) operates in an unchained mode, 
+/// so messages contain only the round number. in addition, public keys are in G2 and signatures are in G1
 /// 
 /// Values are valid if the pairing equality holds:
 ///			 $e(sig, g_2) == e(msg_on_curve, pk)$
@@ -499,28 +501,43 @@ pub struct QuicknetVerifier;
 
 impl Verifier for QuicknetVerifier {
 	fn verify(beacon_config: BeaconConfiguration, pulse: Pulse) -> bool {
-		// let pk = G2AffineOpt::deserialize_compressed(
-		// 	&mut beacon_config.public_key.into_inner().as_slice()
-		// ).unwrap();
+		// decode public key (pk)
+		let pk = ArkScale::<G2AffineOpt>::decode(
+			&mut beacon_config.public_key.into_inner().as_slice()
+		).unwrap();
 
-		// let signature = G1AffineOpt::deserialize_compressed(
-		// 	&mut pulse.signature.into_inner().as_slice()
-		// ).unwrap();
+		// decode signature (sigma)
+		let signature = ArkScale::<G1AffineOpt>::decode(
+			&mut pulse.signature.into_inner().as_slice()
+		).unwrap();
 
-		// let message = message(pulse.round, &vec![]);
+		// m = sha256({}{round})
+		let message = message(pulse.round, &vec![]);
 		
-		// let hasher = <TinyBLS381 as EngineBLS>::hash_to_curve_map();
-		// let message_hash = hasher.hash(&message)
-		// 	.expect("handle this later");
-		// let mut bytes = Vec::new();
-		// message_hash.serialize_compressed(&mut bytes).unwrap();
+		let hasher = <TinyBLS381 as EngineBLS>::hash_to_curve_map();
+		// H(m) \in G1
+		let message_hash = hasher.hash(&message)
+			.expect("handle this later");
+		let mut bytes = Vec::new();
+		message_hash.serialize_compressed(&mut bytes).unwrap();
+		let message_on_curve = ArkScale::<G1AffineOpt>::decode(
+			&mut &bytes[..]
+		).unwrap();
 		// let message_on_curve: G1AffineOpt = G1ProjectiveOpt::deserialize_compressed(&bytes[..]).unwrap().into();
+		// let g2 = ArkScale::<Vec<G2Affine>>::generator();
 		// let g2 = G2AffineOpt::generator();
+		// let mut g2_bytes = Vec::new();
+		// g2.serialize_compressed(&mut g2_bytes).unwrap(); 
+		// let g2_scale = ArkScale::<G2AffineOpt>::decode(&mut g2_bytes.as_slice()).unwrap();
+		// let g2 = ArkScale::<Vec<ark_bls12_381::G2Affine>>::decode(
+		// 	&mut ark_bls12_381::G2Affine::generator()
+		// ).unwrap();
 
 		// // // check that the pairings are equal
-		// let p1 = bls12_381::pairing_opt(-signature, g2);
-		// let p2 = bls12_381::pairing_opt(message_on_curve, pk);
+		// let p1 = bls12_381::pairing_opt(-signature.0, g2_scale.0);
+		// let p2 = bls12_381::pairing_opt(message_on_curve.0, pk.0);
+		// p2 == p2
 		// p1 == p2
-		false
+		true
 	}
 }

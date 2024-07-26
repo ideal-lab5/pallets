@@ -1,44 +1,50 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use futures::FutureExt;
-use node_template_runtime::{self, opaque::Block, RuntimeApi};
 use sc_client_api::{Backend, BlockBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_grandpa::SharedVoterState;
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager, WarpSyncParams};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+use node_template_runtime::{self, opaque::Block, RuntimeApi};
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use std::{sync::Arc, time::Duration};
 
-#[cfg(feature = "runtime-benchmarks")]
-type ExtendedHostFunctions = (
-	sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions,
-	frame_benchmarking::benchmarking::HostFunctions,
-);
+// / Host functions required for kitchensink runtime and Substrate node.
+// #[cfg(not(feature = "runtime-benchmarks"))]
+// pub type HostFunctions =
+// 	(
+// 		// sp_io::SubstrateHostFunctions,
+// 		// sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions
+// 	);
 
-#[cfg(not(feature = "runtime-benchmarks"))]
-type ExtendedHostFunctions = sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions;
+// /// Host functions required for kitchensink runtime and Substrate node.
+// #[cfg(feature = "runtime-benchmarks")]
+// pub type HostFunctions = (
+// 	// sp_io::SubstrateHostFunctions,
+// 	// sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions,
+// 	frame_benchmarking::benchmarking::HostFunctions,
+// );
 
-// Our native executor instance.
-pub struct ExecutorDispatch;
+/// A specialized `WasmExecutor` intended to use across substrate node. It provides all required
+/// HostFunctions.
+// pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
+pub type RuntimeExecutor = sc_executor::WasmExecutor<
+	// sp_wasm_interface::ExtendedHostFunctions<
+	(
+		sp_io::SubstrateHostFunctions,
+		sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions
+	)
+	// >
+>;
+// pub type RuntimeExecutor = sc_executor::WasmExecutor<sp_io::SubstrateHostFunctions>;
 
-impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	type ExtendHostFunctions = ExtendedHostFunctions;
-
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		node_template_runtime::api::dispatch(method, data)
-	}
-
-	fn native_version() -> sc_executor::NativeVersion {
-		node_template_runtime::native_version()
-	}
-}
 
 pub(crate) type FullClient = sc_service::TFullClient<
 	Block,
 	RuntimeApi,
-	sc_executor::WasmExecutor<sp_io::SubstrateHostFunctions>,
+	RuntimeExecutor,
 >;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
@@ -148,7 +154,11 @@ pub fn new_partial(config: &Configuration) -> Result<Service, ServiceError> {
 }
 
 /// Builds a new service for a full client.
-pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
+pub fn new_full<
+	N: sc_network::NetworkBackend<Block, <Block as sp_runtime::traits::Block>::Hash>,
+>(
+	config: Configuration,
+) -> Result<TaskManager, ServiceError> {
 	let sc_service::PartialComponents {
 		client,
 		backend,
@@ -160,14 +170,24 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 		other: (block_import, grandpa_link, mut telemetry),
 	} = new_partial(&config)?;
 
-	let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network);
+	let mut net_config = sc_network::config::FullNetworkConfiguration::<
+		Block,
+		<Block as sp_runtime::traits::Block>::Hash,
+		N,
+	>::new(&config.network, None);
+	let metrics = N::register_notification_metrics(config.prometheus_registry());
 
+	let peer_store_handle = net_config.peer_store_handle();
 	let grandpa_protocol_name = sc_consensus_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
 	);
 	let (grandpa_protocol_config, grandpa_notification_service) =
-		sc_consensus_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone());
+		sc_consensus_grandpa::grandpa_peers_set_config::<_, N>(
+			grandpa_protocol_name.clone(),
+			metrics.clone(),
+			peer_store_handle,
+		);
 	net_config.add_notification_protocol(grandpa_protocol_config);
 
 	let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
@@ -187,9 +207,20 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 			block_announce_validator_builder: None,
 			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
 			block_relay: None,
+			metrics,
 		})?;
 
 	if config.offchain_worker.enabled {
+
+		// Initialize seed for signing transaction using offchain workers. This is a convenience
+		// so learners can see the transactions submitted simply running the node.
+		// Typically these keys should be inserted with RPC calls to `author_insertKey`.
+		sp_keystore::Keystore::sr25519_generate_new(
+			&*keystore_container.keystore(),
+			node_template_runtime::pallet_drand_bridge::KEY_TYPE,
+			Some("//Alice"),
+		).expect("Creating key with account Alice should succeed.");
+
 		task_manager.spawn_handle().spawn(
 			"offchain-workers-runner",
 			"offchain-worker",
@@ -201,7 +232,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 				transaction_pool: Some(OffchainTransactionPoolFactory::new(
 					transaction_pool.clone(),
 				)),
-				network_provider: network.clone(),
+				network_provider: Arc::new(network.clone()),
 				enable_http_requests: true,
 				custom_extensions: |_| vec![],
 			})
@@ -229,7 +260,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	};
 
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-		network: network.clone(),
+		network: Arc::new(network.clone()),
 		client: client.clone(),
 		keystore: keystore_container.keystore(),
 		task_manager: &mut task_manager,
