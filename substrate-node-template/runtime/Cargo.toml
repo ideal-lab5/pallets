@@ -37,6 +37,7 @@ frame-executive = { git = "https://github.com/paritytech/polkadot-sdk.git",  def
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
 pallet-grandpa = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
+pallet-lottery = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }

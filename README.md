@@ -2,6 +2,8 @@
 
 This is a [FRAME](https://docs.substrate.io/reference/frame-pallets/) pallet that allows Substrate-based chains to bridge to drand. It only supports bridging to drand's [Quicknet](https://drand.love/blog/quicknet-is-live-on-the-league-of-entropy-mainnet), which provides fresh randomness every 3 seconds. Adding this pallet to a runtime allows it to acquire verifiable on-chain randomness which can be used in runtime modules or ink! smart contracts. 
 
+Read the [how it works](./docs/how_it_works.md) for a deep-dive into the pallet.
+
 ## Usage
 
 Use this pallet in a Substrate runtime to acquire verifiable randomness from drand's quicknet.

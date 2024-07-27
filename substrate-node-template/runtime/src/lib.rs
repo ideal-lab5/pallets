@@ -19,6 +19,9 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use frame_support::PalletId;
+use frame_system::EnsureRoot;
+
 pub use frame_support::{
 	construct_runtime, derive_impl, parameter_types,
 	traits::{
@@ -260,6 +263,25 @@ impl pallet_drand::Config for Runtime {
 	type Verifier = pallet_drand::QuicknetVerifier;
 }
 
+parameter_types! {
+	pub const LotteryPalletId: PalletId = PalletId(*b"py/lotto");
+	pub const MaxCalls: u32 = 10;
+	pub const MaxGenerateRandom: u32 = 10;
+}
+
+impl pallet_lottery::Config for Runtime {
+	type PalletId = LotteryPalletId;
+	type RuntimeCall = RuntimeCall;
+	type Currency = Balances;
+	type Randomness = Drand;
+	type RuntimeEvent = RuntimeEvent;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type MaxCalls = MaxCalls;
+	type ValidateCall = Lottery;
+	type MaxGenerateRandom = MaxGenerateRandom;
+	type WeightInfo = pallet_lottery::weights::SubstrateWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 #[frame_support::runtime]
 mod runtime {
@@ -301,6 +323,9 @@ mod runtime {
 	// // Include the custom logic from the pallet-template in the runtime.
 	#[runtime::pallet_index(7)]
 	pub type Drand = pallet_drand;
+
+	#[runtime::pallet_index(8)]
+	pub type Lottery = pallet_lottery;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
@@ -401,7 +426,7 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
 		[pallet_sudo, Sudo]
-		// [pallet_template, TemplateModule]
+		[pallet_drand, Drand]
 	);
 }
 
