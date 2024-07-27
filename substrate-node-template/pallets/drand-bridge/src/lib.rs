@@ -1,12 +1,13 @@
 //! # Drand Bridge Pallet
 //!
-//! A pallet to bridge to [drand](drand.love), injecting publicly verifiable randomness into the runtime
+//! A pallet to bridge to [drand](drand.love)'s Quicknet, injecting publicly verifiable randomness into the runtime
 //!
 //! ## Overview
 //!
-//! Normally, the quicknet chain runs in an 'unchained' mode, producing a fresh pulse of randomness every 3s
-//! This pallet 'chains' the values fetched from drand when running against quicknet, effectively 'chaining' each pulse from drand
-//! However it should be noted that we may miss some pulses, as our block times are slower than drand's pulses.
+//! Quicknet chain runs in an 'unchained' mode, producing a fresh pulse of randomness every 3s
+//! This pallet implements an offchain worker that consumes pulses from quicket and then sends a signed
+//! transaction to encode them in the runtime. The runtime uses the optimized arkworks host functions
+//! to efficiently verify the pulse.
 //!
 //! Run `cargo doc --package pallet-drand-beacon --open` to view this pallet's documentation.
 
@@ -24,13 +25,9 @@ use serde::{Serialize, Deserialize};
 use sp_runtime::{
 	offchain::{
 		http,
-		storage::{MutateStorageError, StorageRetrievalError, StorageValueRef},
 		Duration,
 	},
 	KeyTypeId,
-	traits::Zero,
-	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	RuntimeDebug,
 };
 use frame_support::pallet_prelude::*;
 use frame_system::offchain::{
@@ -40,38 +37,24 @@ use frame_system::offchain::{
 	Signer
 };
 use sha2::{Digest, Sha256};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_serialize::CanonicalSerialize;
 use ark_ec::{
 	AffineRepr,
 	hashing::HashToCurve,
 };
 use sp_ark_bls12_381::{
-	Bls12_381 as Bls12_381Opt, Fr as FrOpt, G1Affine as G1AffineOpt,
-	G1Projective as G1ProjectiveOpt, G2Affine as G2AffineOpt, G2Projective as G2ProjectiveOpt,
+	G1Affine as G1AffineOpt, 
+	G2Affine as G2AffineOpt
 };
 
-// use ark_ec::hashing::curve_maps::wb::{WBConfig, WBMap};
-// use ark_ec::hashing::{
-//     map_to_curve_hasher::{MapToCurve, MapToCurveBasedHasher},
-//     HashToCurve,
-// };
-use ark_bls12_381::{G1Affine, G2Affine, G2Projective};
-use w3f_bls::{EngineBLS, TinyBLS381, ZBLS};
-//  use scale_info::prelude::format;
+use w3f_bls::{EngineBLS, TinyBLS381};
 
-// FRAME pallets require their own "mock runtimes" to be able to run unit tests. This module
-// contains a mock runtime specific for testing this pallet's functionality.
 #[cfg(test)]
 mod mock;
 
-// This module contains the unit tests for this pallet.
-// Learn about pallet unit testing here: https://docs.substrate.io/test/unit-testing/
 #[cfg(test)]
 mod tests;
 
-// Every callable function or "dispatchable" a pallet exposes must have weight values that correctly
-// estimate a dispatchable's execution time. The benchmarking module is used to calculate weights
-// for each dispatchable and generates this pallet's weight.rs file. Learn more about benchmarking here: https://docs.substrate.io/test/benchmark/
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -79,10 +62,7 @@ pub use weights::*;
 
 pub mod bls12_381;
 pub mod utils;
-// pub mod hash_to_curve;
 
-
-use ark_scale::hazmat::ArkScaleProjective;
 const USAGE: ark_scale::Usage = ark_scale::WIRE;
 type ArkScale<T> = ark_scale::ArkScale<T, USAGE>;
 
@@ -158,30 +138,30 @@ pub struct MetadataInfoResponse {
 }
 
 impl BeaconInfoResponse {
-	fn try_into_beacon_config(&self) -> Option<BeaconConfiguration> {
-		let bounded_pubkey = OpaquePublicKeyG2::try_from(self.public_key.clone())
-			.expect("a");
-		let bounded_hash = Hash::try_from(self.hash.clone())
-			.expect("a");
-		let bounded_group_hash = Hash::try_from(self.group_hash.clone())
-			.expect("a");
-		let bounded_scheme_id = Hash::try_from(self.scheme_id.as_bytes().to_vec().clone())
-			.expect("a");
-		let bounded_beacon_id = Hash::try_from(self.metadata.beacon_id.as_bytes().to_vec().clone())
-			.expect("a");
-		
-		Some(BeaconConfiguration {
-			public_key: bounded_pubkey,
-			period: self.period,
-			genesis_time: self.genesis_time,
-			hash: bounded_hash,
-			group_hash: bounded_group_hash,
-			scheme_id: bounded_scheme_id,
-			metadata: Metadata {
-				beacon_id: bounded_beacon_id,
-			}
-		})
-	}
+    fn try_into_beacon_config(&self) -> Result<BeaconConfiguration, String> {
+        let bounded_pubkey = OpaquePublicKeyG2::try_from(self.public_key.clone())
+            .map_err(|_| "Failed to convert public_key")?;
+        let bounded_hash = Hash::try_from(self.hash.clone())
+            .map_err(|_| "Failed to convert hash")?;
+        let bounded_group_hash = Hash::try_from(self.group_hash.clone())
+            .map_err(|_| "Failed to convert group_hash")?;
+        let bounded_scheme_id = Hash::try_from(self.scheme_id.as_bytes().to_vec().clone())
+            .map_err(|_| "Failed to convert scheme_id")?;
+        let bounded_beacon_id = Hash::try_from(self.metadata.beacon_id.as_bytes().to_vec().clone())
+            .map_err(|_| "Failed to convert beacon_id")?;
+
+        Ok(BeaconConfiguration {
+            public_key: bounded_pubkey,
+            period: self.period,
+            genesis_time: self.genesis_time,
+            hash: bounded_hash,
+            group_hash: bounded_group_hash,
+            scheme_id: bounded_scheme_id,
+            metadata: Metadata {
+                beacon_id: bounded_beacon_id,
+            },
+        })
+    }
 }
 
 /// a pulse from the drand beacon
@@ -200,21 +180,19 @@ pub struct DrandResponseBody {
 }
 
 impl DrandResponseBody {
-	fn try_into_pulse(&self) -> Option<Pulse> {
+    fn try_into_pulse(&self) -> Result<Pulse, String> {
+        let bounded_randomness = BoundedVec::<u8, ConstU32<32>>::try_from(self.randomness.clone())
+            .map_err(|_| "Failed to convert randomness")?;
+        let bounded_signature = BoundedVec::<u8, ConstU32<144>>::try_from(self.signature.clone())
+            .map_err(|_| "Failed to convert signature")?;
 
-		let bounded_randomness = BoundedVec::<u8, ConstU32<32>>::try_from(self.randomness.clone())
-			.expect("a");
-		let bounded_signature = BoundedVec::<u8, ConstU32<144>>::try_from(self.signature.clone())
-			.expect("a");
-
-		Some(Pulse {
-			round: self.round,
-			randomness: bounded_randomness,
-			signature: bounded_signature,
-		})
-	}
+        Ok(Pulse {
+            round: self.round,
+            randomness: bounded_randomness,
+            signature: bounded_signature,
+        })
+    }
 }
-
 /// a drand chain configuration
 #[derive(Clone, Debug,  Decode, Default, PartialEq, Encode, Serialize, Deserialize, MaxEncodedLen, TypeInfo)]
 pub struct BeaconConfiguration {
@@ -303,8 +281,14 @@ pub mod pallet {
 		NoneValue,
 		/// There was an attempt to increment the value in storage over `u32::MAX`.
 		StorageOverflow,
+		/// failed to connect to the
 		DrandConnectionFailure,
+		/// the pulse is invalid
 		UnverifiedPulse,
+		/// the round number did not increment
+		InvalidRoundNumber,
+		/// the pulse could not be verified
+		PulseVerificationError,
 	}
 
 	#[pallet::hooks]
@@ -312,7 +296,7 @@ pub mod pallet {
 		fn offchain_worker(_bn: BlockNumberFor<T>) {
 			// if the beacon config isn't available, get it now
 			if BeaconConfig::<T>::get().is_none() {
-				if let Err(e) = Self::drand_config() {
+				if let Err(e) = Self::fetch_drand_config() {
 					log::error!(
 						"Failed to fetch chain info from drand, are you sure the chain hash is valid? {:?}",
 						e
@@ -320,9 +304,11 @@ pub mod pallet {
 				}
 			} else {
 				// otherwise query drand
-				log::info!("fetching fresh randomness from drand");
 				if let Err(e) = Self::fetch_drand_and_send_signed() {
-					log::info!("ERROR FETCHING FROM DRAND {:?}", e);
+					log::error!(
+						"Failed to fetch chain info from drand, are you sure the chain hash is valid? {:?}",
+						e
+					);
 				}
 			}
 		}
@@ -331,6 +317,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		
+		/// Verify and write a pulse from the beacon into the runtime
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::do_something())]
 		pub fn write_pulse(
@@ -339,41 +326,58 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			if let Some(config) = BeaconConfig::<T>::get() {
-				if T::Verifier::verify(config, pulse.clone()) {
+				let is_verified = T::Verifier::verify(config, pulse.clone())
+					.map_err(|s| {
+						log::error!("Could not verify the pulse due to: {}", s);
+						return Error::<T>::PulseVerificationError;
+					})?;
+				if is_verified {
 					let mut pulses = Pulses::<T>::get();
+
+					if !pulses.is_empty() {
+						// check that we have incremented the round number
+						let last = &pulses[pulses.len() - 1];
+						frame_support::ensure!(
+							last.round < pulse.round, 
+							Error::<T>::InvalidRoundNumber
+						);
+					}
+
 					if let Ok(_) = pulses.try_push(pulse.clone()) {
 						Pulses::<T>::put(pulses);
 					}
 					Self::deposit_event(Event::NewPulse { round: pulse.round, who });
-				} else {
-					log::info!("Could not verify the pulse");
 				}
 			}
 
 			Ok(())
 		}
 
+		/// allows the root user to set the beacon configuration
+		/// generally this would be called from an offchain worker context.
+		/// there is no verification of configurations, so be careful with this.
+		///
+		/// * `origin`: the root user
+		/// * `config`: the beacon configuration
+		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(0)]
 		pub fn set_beacon_config(
-			_origin: OriginFor<T>,
+			origin: OriginFor<T>,
 			config: BeaconConfiguration,
 		) -> DispatchResult {
-			log::info!("I am here!");
-			// let who = ensure_root(origin)?;
-
+			let _who = ensure_root(origin)?;
 			BeaconConfig::<T>::put(config);			
-
 			Self::deposit_event(Event::BeaconConfigChanged { });
-
 			Ok(())
 		}
 	}
 } 
 
 impl<T: Config> Pallet<T> {
-
-	fn drand_config() -> Result<(), &'static str> {
+	/// query drand's /info endpoint for the quicknet chain
+	/// then send a signed transaction to encode it on-chain
+	fn fetch_drand_config() -> Result<(), &'static str> {
 		let signer = Signer::<T, T::AuthorityId>::all_accounts();
 		if !signer.can_sign() {
 			return Err(
@@ -383,7 +387,6 @@ impl<T: Config> Pallet<T> {
 
 		let config = Self::fetch_drand_chain_info().unwrap();
 		let results = signer.send_signed_transaction(|_account| Call::set_beacon_config { config: config.clone() });
-		log::info!("The result please??");
 		for (acc, res) in &results {
 			match res {
 				Ok(()) => log::info!("[{:?}] Submitted new config: {:?}", acc.id, config),
@@ -396,7 +399,7 @@ impl<T: Config> Pallet<T> {
 
 	/// fetch the latest public pulse from the configured drand beacon
 	/// then send a signed transaction to include it on-chain
-	fn fetch_drand_and_send_signed() -> Result<(),&'static str > {
+	fn fetch_drand_and_send_signed() -> Result<(),&'static str> {
 		let signer = Signer::<T, T::AuthorityId>::all_accounts();
 		if !signer.can_sign() {
 			return Err(
@@ -417,8 +420,6 @@ impl<T: Config> Pallet<T> {
 				Err(e) => log::info!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
 			}
 		}
-
-		log::info!("done");
 
 		Ok(())
 	}
@@ -479,9 +480,10 @@ pub fn message(current_round: RoundNumber, prev_sig: &[u8]) -> Vec<u8> {
 	hasher.finalize().to_vec()
 }
 
+/// something to verify beacon pulses
 pub trait Verifier {
-
-	fn verify(beacon_config: BeaconConfiguration, pulse: Pulse) -> bool;
+	/// verify the given pulse using beacon_config
+	fn verify(beacon_config: BeaconConfiguration, pulse: Pulse) -> Result<bool, String>;
 }
 
 /// A verifier to check values received from quicknet. It outputs true if valid, false otherwise
@@ -500,44 +502,44 @@ pub trait Verifier {
 pub struct QuicknetVerifier;
 
 impl Verifier for QuicknetVerifier {
-	fn verify(beacon_config: BeaconConfiguration, pulse: Pulse) -> bool {
+	fn verify(beacon_config: BeaconConfiguration, pulse: Pulse) -> Result<bool, String> {
 		// decode public key (pk)
 		let pk = ArkScale::<G2AffineOpt>::decode(
 			&mut beacon_config.public_key.into_inner().as_slice()
-		).unwrap();
-
+		).map_err(|e| format!("Failed to decode public key: {}", e))?;
+	
 		// decode signature (sigma)
 		let signature = ArkScale::<G1AffineOpt>::decode(
 			&mut pulse.signature.into_inner().as_slice()
-		).unwrap();
-
+		).map_err(|e| format!("Failed to decode signature: {}", e))?;
+	
 		// m = sha256({}{round})
 		let message = message(pulse.round, &vec![]);
-		
 		let hasher = <TinyBLS381 as EngineBLS>::hash_to_curve_map();
 		// H(m) \in G1
-		let message_hash = hasher.hash(&message)
-			.expect("handle this later");
+		let message_hash = hasher.hash(&message).map_err(|e| format!("Failed to hash message: {}", e))?;
+		
 		let mut bytes = Vec::new();
-		message_hash.serialize_compressed(&mut bytes).unwrap();
+		message_hash.serialize_compressed(&mut bytes)
+			.map_err(|e| format!("Failed to serialize message hash: {}", e))?;
+		
 		let message_on_curve = ArkScale::<G1AffineOpt>::decode(
 			&mut &bytes[..]
-		).unwrap();
-		// let message_on_curve: G1AffineOpt = G1ProjectiveOpt::deserialize_compressed(&bytes[..]).unwrap().into();
-		// let g2 = ArkScale::<Vec<G2Affine>>::generator();
-		// let g2 = G2AffineOpt::generator();
-		// let mut g2_bytes = Vec::new();
-		// g2.serialize_compressed(&mut g2_bytes).unwrap(); 
-		// let g2_scale = ArkScale::<G2AffineOpt>::decode(&mut g2_bytes.as_slice()).unwrap();
-		// let g2 = ArkScale::<Vec<ark_bls12_381::G2Affine>>::decode(
-		// 	&mut ark_bls12_381::G2Affine::generator()
-		// ).unwrap();
-
-		// // // check that the pairings are equal
-		// let p1 = bls12_381::pairing_opt(-signature.0, g2_scale.0);
-		// let p2 = bls12_381::pairing_opt(message_on_curve.0, pk.0);
-		// p2 == p2
-		// p1 == p2
-		true
+		).map_err(|e| format!("Failed to decode message on curve: {}", e))?;
+		
+		let g2 = G2AffineOpt::generator();
+		let mut g2_bytes = Vec::new();
+		g2.serialize_compressed(&mut g2_bytes)
+			.map_err(|e| format!("Failed to serialize G2 generator: {}", e))?;
+		
+		let g2_scale = ArkScale::<G2AffineOpt>::decode(&mut g2_bytes.as_slice())
+			.map_err(|e| format!("Failed to decode G2 scale: {}", e))?;
+	
+		// check that the pairings are equal
+		// e(-sigma, g2) == e(msg, pk)
+		let p1 = bls12_381::pairing_opt(-signature.0, g2_scale.0);
+		let p2 = bls12_381::pairing_opt(message_on_curve.0, pk.0);
+		
+		Ok(p1 == p2)
 	}
 }

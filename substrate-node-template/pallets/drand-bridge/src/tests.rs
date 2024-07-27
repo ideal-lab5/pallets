@@ -65,33 +65,33 @@ fn can_submit_valid_pulse_when_beacon_config_exists() {
 // unverifiable
 // invalid round number
 
-// #[test]
-// fn rejects_invalid_pulse() {
-// 	new_test_ext().execute_with(|| {
-// 		let http_response = "{\"round\":9683710,\"randomness\":\"87f03ef5f62885390defedf60d5b8132b4dc2115b1efc6e99d166a37ab2f3a02\",\"signature\":\"b0a8b04e009cf72534321aca0f50048da596a3feec1172a0244d9a4a623a3123d0402da79854d4c705e94bc73224c342\"}";
-// 		let u_p: DrandResponseBody = serde_json::from_str(http_response).unwrap();
-// 		let p: Pulse = u_p.try_into_pulse().unwrap();
+#[test]
+fn rejects_invalid_pulse() {
+	new_test_ext().execute_with(|| {
+		let http_response = "{\"round\":9683710,\"randomness\":\"87f03ef5f62885390defedf60d5b8132b4dc2115b1efc6e99d166a37ab2f3a02\",\"signature\":\"b0a8b04e009cf72534321aca0f50048da596a3feec1172a0244d9a4a623a3123d0402da79854d4c705e94bc73224c341\"}";
+		let u_p: DrandResponseBody = serde_json::from_str(http_response).unwrap();
+		let p: Pulse = u_p.try_into_pulse().unwrap();
 
-// 		// let alice = sp_keyring::AccountKeyring::Alice.to_account_id().public();
-// 		let alice = sp_keyring::Sr25519Keyring::Alice.public();
-// 		// Go past genesis block so events get deposited
-// 		System::set_block_number(1);
-// 		// Dispatch a signed extrinsic.
-// 		assert_ok!(Drand::write_pulse(
-// 			RuntimeOrigin::signed(alice.clone()), 
-// 			p.clone())
-// 		);
-// 		// // Read pallet storage and assert an expected result.
-// 		let pulses = Pulses::<Test>::get();
-// 		assert_eq!(pulses.len(), 0);
-// 		// assert_eq!(pulses[0], []);
-// 		// // Assert that the correct event was deposited
-// 		// System::assert_last_event(Event::NewPulse {
-// 		// 	round: 9683710, 
-// 		// 	who: alice,
-// 		// }.into());
-// 	});
-// }
+		// let alice = sp_keyring::AccountKeyring::Alice.to_account_id().public();
+		let alice = sp_keyring::Sr25519Keyring::Alice.public();
+		// Go past genesis block so events get deposited
+		System::set_block_number(1);
+		// Dispatch a signed extrinsic.
+		assert_ok!(Drand::write_pulse(
+			RuntimeOrigin::signed(alice.clone()), 
+			p.clone())
+		);
+		// // Read pallet storage and assert an expected result.
+		let pulses = Pulses::<Test>::get();
+		assert_eq!(pulses.len(), 0);
+		// assert_eq!(pulses[0], []);
+		// // Assert that the correct event was deposited
+		// System::assert_last_event(Event::NewPulse {
+		// 	round: 9683710, 
+		// 	who: alice,
+		// }.into());
+	});
+}
 
 #[test]
 fn root_can_submit_beacon_info() {
@@ -158,7 +158,7 @@ fn knows_how_to_mock_http_calls() {
 
 	t.execute_with(|| {
 		let actual_config = Drand::fetch_drand_chain_info().unwrap();
-		assert_eq!(actual_config, expected_config);
+		assert_eq!(actual_config, expected_config.try_into_beacon_config().unwrap());
 
 		let actual_pulse = Drand::fetch_drand().unwrap();
 		assert_eq!(actual_pulse, expected_pulse);

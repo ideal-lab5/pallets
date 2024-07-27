@@ -11,35 +11,24 @@ use node_template_runtime::{self, opaque::Block, RuntimeApi};
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use std::{sync::Arc, time::Duration};
 
-// / Host functions required for kitchensink runtime and Substrate node.
-// #[cfg(not(feature = "runtime-benchmarks"))]
-// pub type HostFunctions =
-// 	(
-// 		// sp_io::SubstrateHostFunctions,
-// 		// sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions
-// 	);
-
-// /// Host functions required for kitchensink runtime and Substrate node.
-// #[cfg(feature = "runtime-benchmarks")]
-// pub type HostFunctions = (
-// 	// sp_io::SubstrateHostFunctions,
-// 	// sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions,
-// 	frame_benchmarking::benchmarking::HostFunctions,
-// );
-
-/// A specialized `WasmExecutor` intended to use across substrate node. It provides all required
-/// HostFunctions.
-// pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
-pub type RuntimeExecutor = sc_executor::WasmExecutor<
-	// sp_wasm_interface::ExtendedHostFunctions<
+/// Host runctions required for Substrate and Arkworks
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type HostFunctions =
 	(
-		sp_io::SubstrateHostFunctions,
+		sp_io::SubstrateHostFunctions, 
 		sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions
-	)
-	// >
->;
-// pub type RuntimeExecutor = sc_executor::WasmExecutor<sp_io::SubstrateHostFunctions>;
+	);
 
+/// Host runctions required for Substrate and Arkworks
+#[cfg(feature = "runtime-benchmarks")]
+pub type HostFunctions = (
+	sp_io::SubstrateHostFunctions,
+	sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions,
+	frame_benchmarking::benchmarking::HostFunctions,
+);
+
+/// A specialized `WasmExecutor`
+pub type RuntimeExecutor = sc_executor::WasmExecutor::<HostFunctions>;
 
 pub(crate) type FullClient = sc_service::TFullClient<
 	Block,
@@ -78,9 +67,9 @@ pub fn new_partial(config: &Configuration) -> Result<Service, ServiceError> {
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_wasm_executor::<sp_io::SubstrateHostFunctions>(config);
+	let executor = sc_service::new_wasm_executor::<HostFunctions>(config);
 	let (client, backend, keystore_container, task_manager) =
-		sc_service::new_full_parts::<Block, RuntimeApi, _>(
+		sc_service::new_full_parts::<Block, RuntimeApi, RuntimeExecutor>(
 			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
@@ -212,9 +201,6 @@ pub fn new_full<
 
 	if config.offchain_worker.enabled {
 
-		// Initialize seed for signing transaction using offchain workers. This is a convenience
-		// so learners can see the transactions submitted simply running the node.
-		// Typically these keys should be inserted with RPC calls to `author_insertKey`.
 		sp_keystore::Keystore::sr25519_generate_new(
 			&*keystore_container.keystore(),
 			node_template_runtime::pallet_drand_bridge::KEY_TYPE,
