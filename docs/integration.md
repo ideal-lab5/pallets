@@ -57,7 +57,7 @@ This is an optional step that should only be done in a testing environment. To a
 if config.offchain_worker.enabled {
     sp_keystore::Keystore::sr25519_generate_new(
         &*keystore_container.keystore(),
-        node_template_runtime::pallet_drand_bridge::KEY_TYPE,
+        node_template_runtime::pallet_drand::KEY_TYPE,
         Some("//Alice"),
     ).expect("Creating key with account Alice should succeed.");
 }
@@ -67,19 +67,19 @@ if config.offchain_worker.enabled {
 
 To use this pallet, add it to a substrate runtime with
 ``` rust
-impl pallet_drand_bridge::Config for Runtime {
+impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_drand_bridge::weights::SubstrateWeight<Runtime>;
-	type AuthorityId = pallet_drand_bridge::crypto::TestAuthId;
+	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
+	type AuthorityId = pallet_drand::crypto::TestAuthId;
 	type MaxPulses = ConstU32<2048>;
-	type Verifier = pallet_drand_bridge::QuicknetVerifier;
+	type Verifier = pallet_drand::QuicknetVerifier;
 }
 
 #[frame_support::runtime]
 mod runtime {
 	...
 	#[runtime::pallet_index(x)]
-	pub type Drand = pallet_drand_bridge;
+	pub type Drand = pallet_drand;
     ...
 }
 ```

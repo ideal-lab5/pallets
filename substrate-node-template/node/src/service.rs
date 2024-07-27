@@ -203,7 +203,7 @@ pub fn new_full<
 
 		sp_keystore::Keystore::sr25519_generate_new(
 			&*keystore_container.keystore(),
-			node_template_runtime::pallet_drand_bridge::KEY_TYPE,
+			node_template_runtime::pallet_drand::KEY_TYPE,
 			Some("//Alice"),
 		).expect("Creating key with account Alice should succeed.");
 

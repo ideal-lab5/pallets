@@ -18,6 +18,7 @@
 pub use pallet::*;
 
 extern crate alloc;
+use crate::alloc::string::ToString;
 
 use alloc::{format, string::String, vec, vec::Vec};
 use codec::{Encode, Decode};
@@ -27,9 +28,12 @@ use sp_runtime::{
 		http,
 		Duration,
 	},
+	traits::Hash,
 	KeyTypeId,
 };
 use frame_support::pallet_prelude::*;
+use frame_system::pallet_prelude::BlockNumberFor;
+use frame_support::traits::Randomness;
 use frame_system::offchain::{
 	AppCrypto, 
 	CreateSignedTransaction, 
@@ -112,10 +116,11 @@ pub mod crypto {
 // pub const PUBLIC_KEY_SERIALIZED_SIZE = 48;
 pub type OpaquePublicKeyG2 = BoundedVec<u8, ConstU32<96>>;
 /// an opauqe hash type
-pub type Hash = BoundedVec<u8, ConstU32<32>>;
+pub type BoundedHash = BoundedVec<u8, ConstU32<32>>;
 /// the round number to track rounds of the beacon 
 pub type RoundNumber = u64;
 
+/// the expected response body from the drand api endpoint `api.drand.sh/{chainId}/info`
 #[derive(Debug,  Decode, Default, PartialEq, Encode, Serialize, Deserialize, TypeInfo, Clone)]
 pub struct BeaconInfoResponse {
 	#[serde(with = "hex::serde")]
@@ -131,6 +136,7 @@ pub struct BeaconInfoResponse {
 	pub metadata: MetadataInfoResponse,
 }
 
+/// metadata associated with the drand info response
 #[derive(Debug,  Decode, Default, PartialEq, Encode, Serialize, Deserialize, TypeInfo, Clone)]
 pub struct MetadataInfoResponse {
 	#[serde(rename = "beaconID")]
@@ -141,13 +147,13 @@ impl BeaconInfoResponse {
     fn try_into_beacon_config(&self) -> Result<BeaconConfiguration, String> {
         let bounded_pubkey = OpaquePublicKeyG2::try_from(self.public_key.clone())
             .map_err(|_| "Failed to convert public_key")?;
-        let bounded_hash = Hash::try_from(self.hash.clone())
+        let bounded_hash = BoundedHash::try_from(self.hash.clone())
             .map_err(|_| "Failed to convert hash")?;
-        let bounded_group_hash = Hash::try_from(self.group_hash.clone())
+        let bounded_group_hash = BoundedHash::try_from(self.group_hash.clone())
             .map_err(|_| "Failed to convert group_hash")?;
-        let bounded_scheme_id = Hash::try_from(self.scheme_id.as_bytes().to_vec().clone())
+        let bounded_scheme_id = BoundedHash::try_from(self.scheme_id.as_bytes().to_vec().clone())
             .map_err(|_| "Failed to convert scheme_id")?;
-        let bounded_beacon_id = Hash::try_from(self.metadata.beacon_id.as_bytes().to_vec().clone())
+        let bounded_beacon_id = BoundedHash::try_from(self.metadata.beacon_id.as_bytes().to_vec().clone())
             .map_err(|_| "Failed to convert beacon_id")?;
 
         Ok(BeaconConfiguration {
@@ -164,7 +170,8 @@ impl BeaconInfoResponse {
     }
 }
 
-/// a pulse from the drand beacon
+/// a pulse from the drand beacon 
+/// the expected response body from the drand api endpoint `api.drand.sh/{chainId}/pulse/latest`
 #[derive(Debug,  Decode, Default, PartialEq, Encode, Serialize, Deserialize)]
 pub struct DrandResponseBody {
 	/// the randomness round number
@@ -199,16 +206,16 @@ pub struct BeaconConfiguration {
 	pub public_key: OpaquePublicKeyG2,
 	pub period: u32,
 	pub genesis_time: u32,
-	pub hash: Hash,
-	pub group_hash: Hash,
-	pub scheme_id: Hash, 
+	pub hash: BoundedHash,
+	pub group_hash: BoundedHash,
+	pub scheme_id: BoundedHash, 
 	pub metadata: Metadata,
 }
 
 /// metadata for the drand beacon configuration
 #[derive(Clone, Debug,  Decode, Default, PartialEq, Encode, Serialize, Deserialize, MaxEncodedLen, TypeInfo)]
 pub struct Metadata {
-	beacon_id: Hash,
+	beacon_id: BoundedHash,
 }
 
 
@@ -225,15 +232,11 @@ pub struct Pulse {
 	// pub previous_signature: Option<Vec<u8>>,
 }
 
-// All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
 pub mod pallet {
-	// Import various useful types required by all FRAME pallets.
 	use super::*;
 	use frame_system::pallet_prelude::*;
 
-	// The `Pallet` struct serves as a placeholder to implement traits, methods and dispatchables
-	// (`Call`s) in this pallet.
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
@@ -252,7 +255,6 @@ pub mod pallet {
 		/// something that knows how to verify beacon pulses
 		type Verifier: Verifier;
 	}
-
 
 	/// the drand beacon configuration
 	#[pallet::storage]
@@ -375,6 +377,7 @@ pub mod pallet {
 } 
 
 impl<T: Config> Pallet<T> {
+
 	/// query drand's /info endpoint for the quicknet chain
 	/// then send a signed transaction to encode it on-chain
 	fn fetch_drand_config() -> Result<(), &'static str> {
@@ -385,7 +388,13 @@ impl<T: Config> Pallet<T> {
 			)?
 		}
 
-		let config = Self::fetch_drand_chain_info().unwrap();
+		let body_str = Self::fetch_drand_chain_info()
+        	.map_err(|_| "Failed to fetch drand chain info")?;
+		let beacon_config: BeaconInfoResponse = serde_json::from_str(&body_str)
+			.map_err(|_| "Failed to convert response body to beacon configuration")?;
+		let config = beacon_config.try_into_beacon_config()
+        	.map_err(|_| "Failed to convert BeaconInfoResponse to BeaconConfiguration")?;
+
 		let results = signer.send_signed_transaction(|_account| Call::set_beacon_config { config: config.clone() });
 		for (acc, res) in &results {
 			match res {
@@ -399,7 +408,7 @@ impl<T: Config> Pallet<T> {
 
 	/// fetch the latest public pulse from the configured drand beacon
 	/// then send a signed transaction to include it on-chain
-	fn fetch_drand_and_send_signed() -> Result<(),&'static str> {
+	fn fetch_drand_and_send_signed() -> Result<(), &'static str> {
 		let signer = Signer::<T, T::AuthorityId>::all_accounts();
 		if !signer.can_sign() {
 			return Err(
@@ -407,10 +416,11 @@ impl<T: Config> Pallet<T> {
 			)?
 		}
 
-		let pulse = Self::fetch_drand()
-			.map_err(|_| Error::<T>::DrandConnectionFailure)?
-			.try_into_pulse()
-			.unwrap();
+		let pulse_body = Self::fetch_drand().map_err(|_| "Failed to query drand")?;
+		let unbounded_pulse: DrandResponseBody = serde_json::from_str(&pulse_body)
+			.map_err(|_| "Failed to serialize response body to pulse")?;
+		let pulse = unbounded_pulse.try_into_pulse()
+			.map_err(|_| "Received pulse contains invalid data")?;
 	
 		let results = signer.send_signed_transaction(|_account| Call::write_pulse { pulse: pulse.clone() });
 
@@ -426,7 +436,7 @@ impl<T: Config> Pallet<T> {
 	
 	/// Query the endpoint `{api}/{chainHash}/info` to receive information about the drand chain
 	/// Valid response bodies are deserialized into `BeaconInfoResponse`
-	fn fetch_drand_chain_info() -> Result<BeaconConfiguration, http::Error> {
+	fn fetch_drand_chain_info() -> Result<String, http::Error> {
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
 		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, QUICKNET_CHAIN_HASH);
 		let request = http::Request::get(uri);
@@ -443,13 +453,11 @@ impl<T: Config> Pallet<T> {
 			http::Error::Unknown
 		})?;
 
-		let beacon_config: BeaconInfoResponse = serde_json::from_str(body_str).unwrap();
-		let config = beacon_config.try_into_beacon_config().unwrap();
-		Ok(config)
+		Ok(body_str.to_string())
 	}
 
 	/// fetches the latest randomness from drand's API
-	fn fetch_drand() -> Result<DrandResponseBody, http::Error> {
+	fn fetch_drand() -> Result<String, http::Error> {
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
 		let uri: &str = &format!("{}/{}/public/latest", API_ENDPOINT, QUICKNET_CHAIN_HASH);
 		let request = http::Request::get(uri);
@@ -466,9 +474,7 @@ impl<T: Config> Pallet<T> {
 			http::Error::Unknown
 		})?;
 
-		let unbounded_pulse: DrandResponseBody = serde_json::from_str(body_str).unwrap();
-		
-		Ok(unbounded_pulse)
+		Ok(body_str.to_string())
 	}
 }
 
@@ -541,5 +547,24 @@ impl Verifier for QuicknetVerifier {
 		let p2 = bls12_381::pairing_opt(message_on_curve.0, pk.0);
 		
 		Ok(p1 == p2)
+	}
+}
+
+impl<T: Config> Randomness<T::Hash, BlockNumberFor<T>> for Pallet<T> {
+	// this function hashes together the subject with the latest known randomness from quicknet
+	fn random(subject: &[u8]) -> (T::Hash, BlockNumberFor<T>) {
+		let block_number = <frame_system::Pallet<T>>::block_number();
+		let pulses = Pulses::<T>::get();
+		// return hash of empty string if there is no onchain randomness
+		if pulses.is_empty() {
+			return (T::Hash::default(), block_number);
+		}
+
+		let latest = &pulses[pulses.len() - 1];
+
+		let entropy = (subject, block_number, latest.randomness.clone())
+			.using_encoded(T::Hashing::hash);
+
+		(entropy, block_number)
 	}
 }

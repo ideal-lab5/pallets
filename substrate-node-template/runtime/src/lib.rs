@@ -47,7 +47,7 @@ pub use sp_runtime::{Perbill, Permill};
 
 // /// Import the template pallet.
 // pub use pallet_template;
-pub use pallet_drand_bridge;
+pub use pallet_drand;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -252,12 +252,12 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
-impl pallet_drand_bridge::Config for Runtime {
+impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_drand_bridge::weights::SubstrateWeight<Runtime>;
-	type AuthorityId = pallet_drand_bridge::crypto::TestAuthId;
+	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
+	type AuthorityId = pallet_drand::crypto::TestAuthId;
 	type MaxPulses = ConstU32<2048>;
-	type Verifier = pallet_drand_bridge::QuicknetVerifier;
+	type Verifier = pallet_drand::QuicknetVerifier;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -300,7 +300,7 @@ mod runtime {
 
 	// // Include the custom logic from the pallet-template in the runtime.
 	#[runtime::pallet_index(7)]
-	pub type Drand = pallet_drand_bridge;
+	pub type Drand = pallet_drand;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime

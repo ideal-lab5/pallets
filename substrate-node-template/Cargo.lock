@@ -4986,7 +4986,7 @@ dependencies = [
  "log",
  "pallet-aura",
  "pallet-balances",
- "pallet-drand-bridge",
+ "pallet-drand",
  "pallet-grandpa",
  "pallet-sudo",
  "pallet-timestamp",
@@ -5301,7 +5301,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-drand-bridge"
+name = "pallet-drand"
 version = "0.0.1"
 dependencies = [
  "anyhow",
@@ -5325,8 +5325,6 @@ dependencies = [
  "sp-ark-bls12-381 0.4.2 (git+https://github.com/paritytech/substrate-curves)",
  "sp-core",
  "sp-io",
- "sp-keyring",
- "sp-keystore",
  "sp-runtime",
  "w3f-bls 0.1.3 (git+https://github.com/w3f/bls)",
 ]

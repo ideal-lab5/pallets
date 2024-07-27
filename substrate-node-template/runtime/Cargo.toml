@@ -81,7 +81,7 @@ frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git",  
 frame-system-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false, optional = true }
 
 # The pallet in this template.
-pallet-drand-bridge = { path = "../pallets/drand-bridge", default-features = false }
+pallet-drand = { path = "../../", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk.git",  optional = true }
@@ -107,7 +107,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-grandpa/std",
 	"pallet-sudo/std",
-	"pallet-drand-bridge/std",
+	"pallet-drand/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -138,7 +138,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
-	"pallet-drand-bridge/runtime-benchmarks",
+	"pallet-drand/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]
@@ -152,7 +152,7 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-grandpa/try-runtime",
 	"pallet-sudo/try-runtime",
-	"pallet-drand-bridge/try-runtime",
+	"pallet-drand/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
