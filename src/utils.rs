@@ -2,17 +2,9 @@
 
 use crate::ArkScale;
 use ark_ec::AffineRepr;
-// use ark_groth16::Groth16;
 use ark_scale::hazmat::ArkScaleProjective;
 use ark_serialize::{CanonicalSerialize, Compress};
-// use ark_snark::SNARK;
 use ark_std::{test_rng, vec, vec::Vec, UniformRand};
-
-// pub type VerifyingKeyFor<PairingT, PrimeFieldT> =
-// 	<Groth16<PairingT> as SNARK<PrimeFieldT>>::VerifyingKey;
-
-// pub type ProofFor<PairingT, PrimeFieldT> = <Groth16<PairingT> as SNARK<PrimeFieldT>>::Proof;
-
 pub type ScalarFieldFor<AffineT> = <AffineT as AffineRepr>::ScalarField;
 
 // `words_count` is the scalar length in words, with 1 word assumed to be 64 bits.

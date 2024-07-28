@@ -9,7 +9,7 @@
 //! transaction to encode them in the runtime. The runtime uses the optimized arkworks host functions
 //! to efficiently verify the pulse.
 //!
-//! Run `cargo doc --package pallet-drand-beacon --open` to view this pallet's documentation.
+//! Run `cargo doc --package pallet-drand --open` to view this pallet's documentation.
 
 // We make sure this pallet uses `no_std` for compiling to Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -321,7 +321,7 @@ pub mod pallet {
 		
 		/// Verify and write a pulse from the beacon into the runtime
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::do_something())]
+		#[pallet::weight(T::WeightInfo::write_pulse())]
 		pub fn write_pulse(
 			origin: OriginFor<T>, 
 			pulse: Pulse,
@@ -363,7 +363,7 @@ pub mod pallet {
 		/// * `config`: the beacon configuration
 		///
 		#[pallet::call_index(1)]
-		#[pallet::weight(0)]
+		#[pallet::weight(T::WeightInfo::set_beacon_config())]
 		pub fn set_beacon_config(
 			origin: OriginFor<T>,
 			config: BeaconConfiguration,
