@@ -9,14 +9,6 @@ homepage = "https://www.idealabs.network"
 repository = "https://www.github.com/ideal-lab5/pallet-drand"
 publish = false
 
-# [workspace]
-# members = [
-# 	"drand-bridge"
-# ]
-
-# [lints]
-# workspace = true
-
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
@@ -47,8 +39,6 @@ ark-serialize = { version = "0.4.0", features = [ "derive" ], default-features =
 ark-ff = { version = "0.4.0", default-features = false }
 ark-ec = { version = "0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false }
-# ark-snark = { version = "0.4.0", default-features = false }
-# ark-groth16 = { version = "0.4.0", features = [ "r1cs" ], default-features = false }
 ark-crypto-primitives = { version = "0.4.0", default-features = false, features = [ "r1cs", "snark" ] } 
 ark-scale = { version = "0.0.11", default-features = false, features = ["hazmat"] }
 w3f-bls = { git = "https://github.com/w3f/bls", default-features = false }
@@ -81,7 +71,6 @@ std = [
 	"ark-ff/std",
 	"ark-ec/std",
 	"ark-std/std",
-	# "ark-groth16/std",
 	"ark-crypto-primitives/std",
 	"ark-scale/std",
 	"w3f-bls/std",

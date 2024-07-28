@@ -250,10 +250,10 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 		/// the maximum number of pulses before the chain should be archived
 		type MaxPulses: Get<u32>;
-		// / the curve used for the public key group
-		// type PublicKeyGroup: ark_ec::bls12::Bls12Config;
 		/// something that knows how to verify beacon pulses
 		type Verifier: Verifier;
+		/// The origin permissioned to update beacon configurations
+		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 	}
 
 	/// the drand beacon configuration
@@ -263,6 +263,15 @@ pub mod pallet {
 	/// pulses received from drand
 	#[pallet::storage]
 	pub type Pulses<T: Config> = StorageValue<_, BoundedVec<Pulse, T::MaxPulses>, ValueQuery>;
+
+	#[pallet::storage]
+	pub type PulseIndex<T: Config> = StorageMap<
+		_, 
+		Blake2_128Concat,
+		BlockNumberFor<T>,
+		u32,
+		OptionQuery
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -346,7 +355,10 @@ pub mod pallet {
 					}
 
 					if let Ok(_) = pulses.try_push(pulse.clone()) {
+						let current_block = frame_system::Pallet::<T>::block_number();
+						PulseIndex::<T>::insert(current_block, pulses.len() as u32);
 						Pulses::<T>::put(pulses);
+
 					}
 					Self::deposit_event(Event::NewPulse { round: pulse.round, who });
 				}
@@ -368,7 +380,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			config: BeaconConfiguration,
 		) -> DispatchResult {
-			let _who = ensure_root(origin)?;
+			T::UpdateOrigin::ensure_origin(origin)?;
 			BeaconConfig::<T>::put(config);			
 			Self::deposit_event(Event::BeaconConfigChanged { });
 			Ok(())
@@ -426,7 +438,7 @@ impl<T: Config> Pallet<T> {
 
 		for (acc, res) in &results {
 			match res {
-				Ok(()) => log::info!("[{:?}] Submitted new pulse: {:?}", acc.id, pulse),
+				Ok(()) => log::info!("[{:?}] Submitted new pulse: {:?}", acc.id, pulse.round),
 				Err(e) => log::info!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
 			}
 		}
@@ -475,6 +487,20 @@ impl<T: Config> Pallet<T> {
 		})?;
 
 		Ok(body_str.to_string())
+	}
+
+	pub fn pulse_by_block_number(block_number: BlockNumberFor<T>) -> Option<Vec<u8>> {
+		if let Some(idx) = PulseIndex::<T>::get(block_number)  {
+			let pulses = Pulses::<T>::get();
+			// make sure the index is valid
+			if pulses.len() < idx as usize {
+				return None;
+			}
+
+			return Some(pulses[idx as usize].randomness.clone().into());
+		}
+
+		None
 	}
 }
 

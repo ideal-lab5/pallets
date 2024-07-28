@@ -10,6 +10,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
+	DispatchError,
 	traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature, SaturatedConversion,
@@ -20,13 +21,13 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 use frame_support::PalletId;
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSigned};
 
 pub use frame_support::{
 	construct_runtime, derive_impl, parameter_types,
 	traits::{
 		ConstBool, ConstU128, ConstU32, ConstU64, ConstU8, KeyOwnerProofSystem, Randomness,
-		StorageInfo,
+		StorageInfo, Nothing,
 	},
 	weights::{
 		constants::{
@@ -47,6 +48,17 @@ use pallet_transaction_payment::{ConstFeeMultiplier, FungibleAdapter, Multiplier
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
+
+use sp_core::crypto::UncheckedFrom;
+
+use pallet_contracts::chain_extension::{
+    ChainExtension,
+    Environment,
+    Ext,
+    InitState,
+    RetVal,
+    SysConfig,
+};
 
 // /// Import the template pallet.
 // pub use pallet_template;
@@ -142,6 +154,15 @@ pub fn native_version() -> NativeVersion {
 }
 
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+
+// Contracts price units.
+pub const MILLICENTS: Balance = 1_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS;
+pub const DOLLARS: Balance = 100 * CENTS;
+
+const fn deposit(items: u32, bytes: u32) -> Balance {
+	(items as Balance * CENTS + (bytes as Balance) * (5 * MILLICENTS / 100)) / 100
+}
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
@@ -261,6 +282,7 @@ impl pallet_drand::Config for Runtime {
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
 	type MaxPulses = ConstU32<2048>;
 	type Verifier = pallet_drand::QuicknetVerifier;
+	type UpdateOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -280,6 +302,56 @@ impl pallet_lottery::Config for Runtime {
 	type ValidateCall = Lottery;
 	type MaxGenerateRandom = MaxGenerateRandom;
 	type WeightInfo = pallet_lottery::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const DepositPerItem: Balance = deposit(1, 0);
+	pub const DepositPerByte: Balance = deposit(0, 1);
+	pub const DefaultDepositLimit: Balance = deposit(1024, 1024 * 1024);
+	pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
+	pub CodeHashLockupDepositPercent: Perbill = Perbill::from_percent(30);
+}
+
+impl pallet_contracts::Config for Runtime {
+	type Time = Timestamp;
+	type Randomness = Drand;
+	type Currency = Balances;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	/// The safest default is to allow no calls at all.
+	///
+	/// Runtimes should whitelist dispatchables that are allowed to be called from contracts
+	/// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
+	/// change because that would break already deployed contracts. The `Call` structure itself
+	/// is not allowed to change the indices of existing pallets, too.
+	type CallFilter = Nothing;
+	type DepositPerItem = DepositPerItem;
+	type DepositPerByte = DepositPerByte;
+	type DefaultDepositLimit = DefaultDepositLimit;
+	type CallStack = [pallet_contracts::Frame<Self>; 5];
+	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
+	type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
+	type ChainExtension = DrandExtension;
+	type Schedule = Schedule;
+	type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
+	type MaxCodeLen = ConstU32<{ 123 * 1024 }>;
+	type MaxStorageKeyLen = ConstU32<128>;
+	type UnsafeUnstableInterface = ConstBool<false>;
+	type UploadOrigin = EnsureSigned<Self::AccountId>;
+	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
+	type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Migrations = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type Migrations = pallet_contracts::migration::codegen::BenchMigrations;
+	type MaxDelegateDependencies = ConstU32<32>;
+	type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
+	type Debug = ();
+	type Environment = ();
+	type ApiVersion = ();
+	type Xcm = ();
+	type MaxTransientStorageSize = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -326,6 +398,9 @@ mod runtime {
 
 	#[runtime::pallet_index(8)]
 	pub type Lottery = pallet_lottery;
+
+	#[runtime::pallet_index(9)]
+	pub type Contracts = pallet_contracts;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
@@ -694,3 +769,50 @@ pub mod interface {
 	pub type MinimumBalance = <Runtime as pallet_balances::Config>::ExistentialDeposit;
 }
 
+#[derive(Default)]
+pub struct DrandExtension;
+
+impl ChainExtension<Runtime> for DrandExtension {
+	
+    fn call<E: Ext>(
+        &mut self,
+        env: Environment<E, InitState>,
+    ) -> Result<RetVal, DispatchError>
+    where
+        <E::T as SysConfig>::AccountId:
+            UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+    {
+		let func_id = env.func_id();
+		log::trace!(
+			target: "runtime",
+			"[ChainExtension]|call|func_id:{:}",
+			func_id
+		);
+        match func_id {	
+            1101 => {
+                let mut env = env.buf_in_buf_out();
+				let maybe_block_number: Option<u32> = env.read_as()?;
+				let block_number = maybe_block_number.unwrap_or(
+					System::block_number()
+				);
+
+				let rand = Drand::pulse_by_block_number(block_number)
+					.unwrap_or(Vec::new());
+
+				env.write(&rand.encode(), false, None).map_err(|_| {
+					DispatchError::Other("Failed to write output randomness")
+				})?;
+				
+				Ok(RetVal::Converging(0))
+            },
+            _ => {
+                log::error!("Called an unregistered `func_id`: {:}", func_id);
+                Err(DispatchError::Other("Unimplemented func_id"))
+            }
+        }
+    }
+
+    fn enabled() -> bool {
+        true
+    }
+}

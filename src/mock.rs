@@ -95,8 +95,8 @@ impl pallet_drand_bridge::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxPulses = ConstU32<2048>;
-	// type PublicKeyGroup = ark_bls12_381::G1Affine;
 	type Verifier = QuicknetVerifier;
+	type UpdateOrigin = frame_system::EnsureRoot<u64>;
 }
 
 // Build genesis storage according to the mock runtime.
