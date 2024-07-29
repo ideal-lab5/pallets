@@ -574,16 +574,8 @@ impl Verifier for QuicknetVerifier {
 		).map_err(|e| format!("Failed to decode message on curve: {}", e))?;
 		
 		let g2 = G2AffineOpt::generator();
-		let mut g2_bytes = Vec::new();
-		g2.serialize_compressed(&mut g2_bytes)
-			.map_err(|e| format!("Failed to serialize G2 generator: {}", e))?;
 		
-		let g2_scale = ArkScale::<G2AffineOpt>::decode(&mut g2_bytes.as_slice())
-			.map_err(|e| format!("Failed to decode G2 scale: {}", e))?;
-	
-		// check that the pairings are equal
-		// e(-sigma, g2) == e(msg, pk)
-		let p1 = bls12_381::pairing_opt(-signature.0, g2_scale.0);
+		let p1 = bls12_381::pairing_opt(-signature.0, g2);
 		let p2 = bls12_381::pairing_opt(message_on_curve.0, pk.0);
 		
 		Ok(p1 == p2)
