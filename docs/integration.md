@@ -137,3 +137,68 @@ RuntimeCall: From<C>,
 	type Extrinsic = UncheckedExtrinsic;
 }
 ```
+
+## Smart Contracts Config
+
+This assumes that you have already integrated the contracts pallet in your  time. To use the drand pallet's randomness within smart contracts, we first add a chain extension to the runtime and then tell the contracts pallet to use it.
+
+### Add chain extension
+
+This is just one possible way to write a chain extension. This can be customized on a per-chain basis.
+
+At the bottom of `runtime/src/lib.rs`, add:
+
+``` rust
+#[derive(Default)]
+pub struct DrandExtension;
+
+impl ChainExtension<Runtime> for DrandExtension {
+	
+    fn call<E: Ext>(
+        &mut self,
+        env: Environment<E, InitState>,
+    ) -> Result<RetVal, DispatchError>
+    where
+        <E::T as SysConfig>::AccountId:
+            UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+    {
+		let func_id = env.func_id();
+		log::trace!(
+			target: "runtime",
+			"[ChainExtension]|call|func_id:{:}",
+			func_id
+		);
+        match func_id {	
+            1101 => {
+                let mut env = env.buf_in_buf_out();
+				let rand = Drand::latest_random();
+				env.write(&rand.encode(), false, None).map_err(|_| {
+					DispatchError::Other("Failed to write output randomness")
+				})?;
+				
+				Ok(RetVal::Converging(0))
+            },
+            _ => {
+                log::error!("Called an unregistered `func_id`: {:}", func_id);
+                Err(DispatchError::Other("Unimplemented func_id"))
+            }
+        }
+    }
+
+    fn enabled() -> bool {
+        true
+    }
+}
+```
+
+### Configure Contracts Pallet
+
+``` rust
+impl pallet_contracts::Config for Runtime {
+	...
+	type Randomness = Drand;
+	...
+	type ChainExtension = DrandExtension;
+	...
+}
+```
