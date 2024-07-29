@@ -24,6 +24,7 @@ use frame_support::PalletId;
 use frame_system::{EnsureRoot, EnsureSigned};
 
 pub use frame_support::{
+	dynamic_params::{dynamic_pallet_params, dynamic_params},
 	construct_runtime, derive_impl, parameter_types,
 	traits::{
 		ConstBool, ConstU128, ConstU32, ConstU64, ConstU8, KeyOwnerProofSystem, Randomness,
@@ -51,13 +52,16 @@ pub use sp_runtime::{Perbill, Permill};
 
 use sp_core::crypto::UncheckedFrom;
 
-use pallet_contracts::chain_extension::{
-    ChainExtension,
-    Environment,
-    Ext,
-    InitState,
-    RetVal,
-    SysConfig,
+use pallet_contracts::{
+	DebugInfo, 
+	chain_extension::{
+		ChainExtension,
+		Environment,
+		Ext,
+		InitState,
+		RetVal,
+		SysConfig,
+	}
 };
 
 // /// Import the template pallet.
@@ -146,6 +150,15 @@ pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
+
+// Prints debug output of the `contracts` pallet to stdout if the node is
+// started with `-lruntime::contracts=debug`.
+pub const CONTRACTS_DEBUG_OUTPUT: DebugInfo = DebugInfo::UnsafeDebug;
+
+type EventRecord = frame_system::EventRecord<
+	<Runtime as frame_system::Config>::RuntimeEvent,
+	<Runtime as frame_system::Config>::Hash,
+>;
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -282,7 +295,7 @@ impl pallet_drand::Config for Runtime {
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
 	type MaxPulses = ConstU32<2048>;
 	type Verifier = pallet_drand::QuicknetVerifier;
-	type UpdateOrigin = EnsureRoot<AccountId>;
+	type UpdateOrigin = EnsureSigned<AccountId>;
 }
 
 parameter_types! {
@@ -305,8 +318,8 @@ impl pallet_lottery::Config for Runtime {
 }
 
 parameter_types! {
-	pub const DepositPerItem: Balance = deposit(1, 0);
-	pub const DepositPerByte: Balance = deposit(0, 1);
+	pub const DepositPerItem: Balance = deposit(0, 0);
+	pub const DepositPerByte: Balance = deposit(0, 0);
 	pub const DefaultDepositLimit: Balance = deposit(1024, 1024 * 1024);
 	pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
 	pub CodeHashLockupDepositPercent: Perbill = Perbill::from_percent(30);
@@ -714,6 +727,74 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_contracts::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash, EventRecord> for Runtime {
+		fn call(
+			origin: AccountId,
+			dest: AccountId,
+			value: Balance,
+			gas_limit: Option<Weight>,
+			storage_deposit_limit: Option<Balance>,
+			input_data: Vec<u8>,
+		) -> pallet_contracts::ContractExecResult<Balance, EventRecord> {
+			let gas_limit = gas_limit.unwrap_or(BlockWeights::get().max_block);
+			Contracts::bare_call(
+				origin,
+				dest,
+				value,
+				gas_limit,
+				storage_deposit_limit,
+				input_data,
+				CONTRACTS_DEBUG_OUTPUT,
+				pallet_contracts::CollectEvents::UnsafeCollect,
+				pallet_contracts::Determinism::Enforced,
+			)
+		}
+
+		fn instantiate(
+			origin: AccountId,
+			value: Balance,
+			gas_limit: Option<Weight>,
+			storage_deposit_limit: Option<Balance>,
+			code: pallet_contracts::Code<Hash>,
+			data: Vec<u8>,
+			salt: Vec<u8>,
+		) -> pallet_contracts::ContractInstantiateResult<AccountId, Balance, EventRecord> {
+			let gas_limit = gas_limit.unwrap_or(BlockWeights::get().max_block);
+			Contracts::bare_instantiate(
+				origin,
+				value,
+				gas_limit,
+				storage_deposit_limit,
+				code,
+				data,
+				salt,
+				CONTRACTS_DEBUG_OUTPUT,
+				pallet_contracts::CollectEvents::UnsafeCollect,
+			)
+		}
+
+		fn upload_code(
+			origin: AccountId,
+			code: Vec<u8>,
+			storage_deposit_limit: Option<Balance>,
+			determinism: pallet_contracts::Determinism,
+		) -> pallet_contracts::CodeUploadResult<Hash, Balance> {
+			Contracts::bare_upload_code(
+				origin,
+				code,
+				storage_deposit_limit,
+				determinism,
+			)
+		}
+
+		fn get_storage(
+			address: AccountId,
+			key: Vec<u8>,
+		) -> pallet_contracts::GetStorageResult {
+			Contracts::get_storage(address, key)
+		}
+	}
+
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
 		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
@@ -791,14 +872,7 @@ impl ChainExtension<Runtime> for DrandExtension {
         match func_id {	
             1101 => {
                 let mut env = env.buf_in_buf_out();
-				let maybe_block_number: Option<u32> = env.read_as()?;
-				let block_number = maybe_block_number.unwrap_or(
-					System::block_number()
-				);
-
-				let rand = Drand::pulse_by_block_number(block_number)
-					.unwrap_or(Vec::new());
-
+				let rand = Drand::latest_random();
 				env.write(&rand.encode(), false, None).map_err(|_| {
 					DispatchError::Other("Failed to write output randomness")
 				})?;

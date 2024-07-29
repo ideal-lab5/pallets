@@ -264,6 +264,7 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type Pulses<T: Config> = StorageValue<_, BoundedVec<Pulse, T::MaxPulses>, ValueQuery>;
 
+	/// map block number to index of pulse authored during that block
 	#[pallet::storage]
 	pub type PulseIndex<T: Config> = StorageMap<
 		_, 
@@ -489,19 +490,32 @@ impl<T: Config> Pallet<T> {
 		Ok(body_str.to_string())
 	}
 
-	pub fn pulse_by_block_number(block_number: BlockNumberFor<T>) -> Option<Vec<u8>> {
-		if let Some(idx) = PulseIndex::<T>::get(block_number)  {
-			let pulses = Pulses::<T>::get();
-			// make sure the index is valid
-			if pulses.len() < idx as usize {
-				return None;
-			}
-
-			return Some(pulses[idx as usize].randomness.clone().into());
+	pub fn latest_random() -> [u8;32] {
+		let pulses = Pulses::<T>::get();
+		if !pulses.is_empty() {
+			let rand = pulses[pulses.len() - 1].randomness.clone();
+			let bounded_rand: [u8;32] = rand.into_inner()
+				.try_into()
+				.unwrap_or([0u8;32]);
+			return bounded_rand;
 		}
 
-		None
+		[0u8;32]
 	}
+
+	// pub fn pulse_by_block_number(block_number: BlockNumberFor<T>) -> Option<Vec<u8>> {
+	// 	if let Some(idx) = PulseIndex::<T>::get(block_number)  {
+	// 		let pulses = Pulses::<T>::get();
+	// 		// make sure the index is valid
+	// 		if pulses.len() < idx as usize {
+	// 			return None;
+	// 		}
+
+	// 		return Some(pulses[idx as usize].randomness.clone().into());
+	// 	}
+
+	// 	None
+	// }
 }
 
 /// construct a message (e.g. signed by drand)
