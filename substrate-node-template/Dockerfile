@@ -2,17 +2,16 @@ FROM paritytech/ci-linux:production as build
 
 WORKDIR /code
 COPY . .
-# the latest release of ahash uses build_hasher_simple_hash_one 
-# which was stabilized in 1.71 but the latest rustc version 
-# from the paritytech/ci-linux:production is 1.68.0.
-# RUN cargo +nightly update -p ahash@0.8.7 --precise 0.8.6
-# RUN rustup toolchain uninstall stable && rustup toolchain install stable
-# RUN rustup target add wasm32-unknown-unknown --toolchain stable-x86_64-unknown-linux-gnu
-RUN rustup toolchain uninstall nightly
-RUN rustup toolchain install nightly
-RUN rustup target add wasm32-unknown-unknown --toolchain nightly-x86_64-unknown-linux-gnu
-RUN rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
-RUN cargo +nightly build --release
+# Install Rust 1.79.0
+RUN rustup toolchain install 1.79.0
+RUN rustup default 1.79.0
+
+# Add the wasm32 target for Rust 1.79.0
+RUN rustup target add wasm32-unknown-unknown --toolchain 1.79.0-x86_64-unknown-linux-gnu
+RUN rustup component add rust-src --toolchain 1.79.0-x86_64-unknown-linux-gnu
+
+# Build the project using Rust 1.79.0
+RUN cargo +1.79.0 build --release
 
 FROM ubuntu:22.04
 WORKDIR /node-template

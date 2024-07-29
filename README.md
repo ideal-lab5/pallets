@@ -8,6 +8,17 @@ Read [here](https://github.com/ideal-lab5/pallet-drand/blob/main/docs/how_it_wor
 
 Use this pallet in a Substrate runtime to acquire verifiable randomness from drand's quicknet.
 
+### Node Requirements
+
+Usage of this pallet requires that the node support:
+- arkworks host functions
+- offchain workers
+- (optional - in case of smart contracts) Contracts pallet and drand  chain extension enabled 
+
+We have included a node in this repo, [substrate-node-template](https://github.com/ideal-lab5/pallet-drand/tree/main/substrate-node-template), that meets these requirements that you can use to get started.
+
+See [here](https://github.com/ideal-lab5/pallet-drand/blob/main/docs/integration.md) for a detailed guide on integrating this pallet into a runtime.
+
 ### For Pallets
 This pallet implements the [Randomness](https://paritytech.github.io/polkadot-sdk/master/frame_support/traits/trait.Randomness.html) trait. FRAME pallets can use it by configuring their runtimes 
 
@@ -25,11 +36,9 @@ let latest_randomness = T::Randomness::random(b"ctx");
 
 For example, the [lottery pallet](https://github.com/paritytech/polkadot-sdk/blob/d3d1542c1d387408c141f9a1a8168e32435a4be9/substrate/frame/lottery/src/lib.rs#L518)
 
-Follow the guide [here](https://github.com/ideal-lab5/pallet-drand/blob/main/docs/integration.md) to get started with integrating this pallet into a runtime.
+### For Smart Contracts
 
-<!-- ### For Smart Contracts
-
-Add the [chain extension]() to your runtime and then follow the guide [here](). -->
+Add a [chain extension](https://use.ink/macros-attributes/chain-extension/) to your runtime to expose the drand pallet's randomness. An example can be found in the template [here](https://github.com/ideal-lab5/pallet-drand/blob/f00598d961a484fc3c47d1d7f3fa74e5a9f4d38a/substrate-node-template/runtime/src/lib.rs#L854). and then follow the guide [here](https://github.com/ideal-lab5/contracts). The [template contract](https://github.com/ideal-lab5/contracts/tree/main/template) provides a minimal working example.
 
 ## Building
 
