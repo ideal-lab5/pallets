@@ -93,10 +93,9 @@ RuntimeCall: From<LocalCall>,
 impl pallet_drand_bridge::Config for Test {
 	type AuthorityId = crypto::TestAuthId;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-	type MaxPulses = ConstU32<2048>;
+	type WeightInfo = pallet_drand_bridge::weights::SubstrateWeight<Test>;
 	type Verifier = QuicknetVerifier;
-	type UpdateOrigin = frame_system::EnsureRoot<u64>;
+	type UpdateOrigin = frame_system::EnsureRoot<AccountId>;
 }
 
 // Build genesis storage according to the mock runtime.

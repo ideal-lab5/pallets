@@ -28,7 +28,7 @@ use sp_runtime::{
 		http,
 		Duration,
 	},
-	traits::Hash,
+	traits::{Hash, One},
 	KeyTypeId,
 };
 use frame_support::pallet_prelude::*;
@@ -248,8 +248,6 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
-		/// the maximum number of pulses before the chain should be archived
-		type MaxPulses: Get<u32>;
 		/// something that knows how to verify beacon pulses
 		type Verifier: Verifier;
 		/// The origin permissioned to update beacon configurations
@@ -260,17 +258,17 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type BeaconConfig<T: Config> = StorageValue<_, BeaconConfiguration, OptionQuery>;
 
-	/// pulses received from drand
-	#[pallet::storage]
-	pub type Pulses<T: Config> = StorageValue<_, BoundedVec<Pulse, T::MaxPulses>, ValueQuery>;
+	// /// pulses received from drand
+	// #[pallet::storage]
+	// pub type Pulses<T: Config> = StorageValue<_, BoundedVec<Pulse, T::MaxPulses>, ValueQuery>;
 
-	/// map block number to index of pulse authored during that block
+	/// map block number to round number of pulse authored during that block
 	#[pallet::storage]
-	pub type PulseIndex<T: Config> = StorageMap<
+	pub type Pulses<T: Config> = StorageMap<
 		_, 
 		Blake2_128Concat,
 		BlockNumberFor<T>,
-		u32,
+		Pulse,
 		OptionQuery
 	>;
 
@@ -337,37 +335,34 @@ pub mod pallet {
 			pulse: Pulse,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+		
 			if let Some(config) = BeaconConfig::<T>::get() {
 				let is_verified = T::Verifier::verify(config, pulse.clone())
 					.map_err(|s| {
 						log::error!("Could not verify the pulse due to: {}", s);
-						return Error::<T>::PulseVerificationError;
+						Error::<T>::PulseVerificationError
 					})?;
+				
 				if is_verified {
-					let mut pulses = Pulses::<T>::get();
-
-					if !pulses.is_empty() {
-						// check that we have incremented the round number
-						let last = &pulses[pulses.len() - 1];
+					let current_block = frame_system::Pallet::<T>::block_number();
+					
+					// Retrieve the last pulse index and verify the round number
+					if let Some(last_pulse) = Pulses::<T>::get(current_block - One::one()) {
 						frame_support::ensure!(
-							last.round < pulse.round, 
+							last_pulse.round < pulse.round, 
 							Error::<T>::InvalidRoundNumber
 						);
 					}
-
-					if let Ok(_) = pulses.try_push(pulse.clone()) {
-						let current_block = frame_system::Pallet::<T>::block_number();
-						PulseIndex::<T>::insert(current_block, pulses.len() as u32);
-						Pulses::<T>::put(pulses);
-
-					}
+		
+					// Store the new pulse
+					Pulses::<T>::insert(current_block, pulse.clone());	
+					// Emit event for new pulse
 					Self::deposit_event(Event::NewPulse { round: pulse.round, who });
 				}
 			}
-
+		
 			Ok(())
 		}
-
 		/// allows the root user to set the beacon configuration
 		/// generally this would be called from an offchain worker context.
 		/// there is no verification of configurations, so be careful with this.
@@ -490,17 +485,17 @@ impl<T: Config> Pallet<T> {
 		Ok(body_str.to_string())
 	}
 
-	pub fn latest_random() -> [u8;32] {
-		let pulses = Pulses::<T>::get();
-		if !pulses.is_empty() {
-			let rand = pulses[pulses.len() - 1].randomness.clone();
-			let bounded_rand: [u8;32] = rand.into_inner()
-				.try_into()
-				.unwrap_or([0u8;32]);
-			return bounded_rand;
-		}
+	/// get the randomness at a specific block height
+	/// returns [0u8;32] if it does not exist
+	pub fn random_at(block_number: BlockNumberFor<T>) -> [u8;32] {
+		let pulse = Pulses::<T>::get(block_number)
+			.unwrap_or(Pulse::default());
+		let rand = pulse.randomness.clone();
+		let bounded_rand: [u8;32] = rand.into_inner()
+			.try_into()
+			.unwrap_or([0u8;32]);
 
-		[0u8;32]
+		bounded_rand
 	}
 
 	// pub fn pulse_by_block_number(block_number: BlockNumberFor<T>) -> Option<Vec<u8>> {
@@ -585,18 +580,15 @@ impl Verifier for QuicknetVerifier {
 impl<T: Config> Randomness<T::Hash, BlockNumberFor<T>> for Pallet<T> {
 	// this function hashes together the subject with the latest known randomness from quicknet
 	fn random(subject: &[u8]) -> (T::Hash, BlockNumberFor<T>) {
-		let block_number = <frame_system::Pallet<T>>::block_number();
-		let pulses = Pulses::<T>::get();
-		// return hash of empty string if there is no onchain randomness
-		if pulses.is_empty() {
-			return (T::Hash::default(), block_number);
+		let block_number_minus_one = <frame_system::Pallet<T>>::block_number() - One::one();
+
+		let mut entropy = T::Hash::default();
+		if let Some(pulse) = Pulses::<T>::get(block_number_minus_one) {
+			entropy = (
+				subject, block_number_minus_one, pulse.randomness.clone()
+			).using_encoded(T::Hashing::hash);
 		}
 
-		let latest = &pulses[pulses.len() - 1];
-
-		let entropy = (subject, block_number, latest.randomness.clone())
-			.using_encoded(T::Hashing::hash);
-
-		(entropy, block_number)
+		(entropy, block_number_minus_one)
 	}
 }

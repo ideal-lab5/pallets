@@ -293,7 +293,6 @@ impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
-	type MaxPulses = ConstU32<2048>;
 	type Verifier = pallet_drand::QuicknetVerifier;
 	type UpdateOrigin = EnsureSigned<AccountId>;
 }
