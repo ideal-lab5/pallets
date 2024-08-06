@@ -52,10 +52,13 @@ let (client, backend, keystore_container, task_manager) =
 
 Make sure the `enable_http_requests` is set to `true` in the `sc_offchain::OffchainWorkerOptions`.
 
-### (Optional) Add Authority Keys 
+### Add Authority Keys 
 
-This is an optional step that should only be done in a testing environment. To add initial keys for an authority's OCW (e.g. Alice), add the following code inside of the if statement:
+To add initial keys for an authority's OCW (e.g. Alice) you can do one of these:
 
+#### a. Programatically - ONLY FOR DEV ENVS
+
+Add this code inside of the if statement:
 ``` rust
 if config.offchain_worker.enabled {
     sp_keystore::Keystore::sr25519_generate_new(
@@ -65,6 +68,15 @@ if config.offchain_worker.enabled {
     ).expect("Creating key with account Alice should succeed.");
 }
 ```
+
+#### b. Via Polkadot.js Apps
+
+1. Access the Polkadot.js Apps on your browser and connecto to your node.
+2. Navigate to "Developer > RPC Calls" and select the `author_insertKey` call.
+3. Fill in the parameters
+	- **Key type**: `drnd`
+	- **SURI**: The secret URI, usually a mnemonic seed phrase or SS58 Address (for Alice it is `5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY`)
+	- **Public key**: The public key derived from the SURI (for Alice it is `0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d`)
 
 ## Configure the Runtime
 
