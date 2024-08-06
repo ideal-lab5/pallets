@@ -258,10 +258,6 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type BeaconConfig<T: Config> = StorageValue<_, BeaconConfiguration, OptionQuery>;
 
-	// /// pulses received from drand
-	// #[pallet::storage]
-	// pub type Pulses<T: Config> = StorageValue<_, BoundedVec<Pulse, T::MaxPulses>, ValueQuery>;
-
 	/// map block number to round number of pulse authored during that block
 	#[pallet::storage]
 	pub type Pulses<T: Config> = StorageMap<

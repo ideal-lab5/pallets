@@ -48,6 +48,9 @@ let (client, backend, keystore_container, task_manager) =
         executor,
     )?;
 ```
+### Enable HTTP requests
+
+Make sure the `enable_http_requests` is set to `true` in the `sc_offchain::OffchainWorkerOptions`.
 
 ### (Optional) Add Authority Keys 
 
@@ -71,7 +74,6 @@ impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
-	type MaxPulses = ConstU32<2048>;
 	type Verifier = pallet_drand::QuicknetVerifier;
 	type UpdateOrigin = EnsureRoot<AccountId>;
 }
