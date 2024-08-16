@@ -871,7 +871,7 @@ impl ChainExtension<Runtime> for DrandExtension {
         match func_id {	
             1101 => {
                 let mut env = env.buf_in_buf_out();
-				let rand = Drand::latest_random();
+				let rand = Drand::random(&[]);
 				env.write(&rand.encode(), false, None).map_err(|_| {
 					DispatchError::Other("Failed to write output randomness")
 				})?;
