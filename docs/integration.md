@@ -75,7 +75,7 @@ if config.offchain_worker.enabled {
 2. Navigate to "Developer > RPC Calls" and select the `author_insertKey` call.
 3. Fill in the parameters
 	- **Key type**: `drnd`
-	- **SURI**: The secret URI, usually a mnemonic seed phrase or SS58 Address (for Alice it is `5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY`)
+	- **SURI**: The secret URI, usually a mnemonic seed phrase (for Alice it is `//Alice`)
 	- **Public key**: The public key derived from the SURI (for Alice it is `0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d`)
 
 ## Configure the Runtime
@@ -109,7 +109,7 @@ where
 		call: RuntimeCall,
 		public: <Signature as sp_runtime::traits::Verify>::Signer,
 		account: AccountId,
-		index: Index,
+		nonce: Nonce,
 	) -> Option<(RuntimeCall, <UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload)> {
 		let period = BlockHashCount::get() as u64;
 		let current_block = System::block_number()
@@ -122,7 +122,7 @@ where
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
 			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-			frame_system::CheckNonce::<Runtime>::from(index),
+			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 		);

@@ -101,9 +101,8 @@ pub mod crypto {
 	}
 }
 
-// pub const PUBLIC_KEY_SERIALIZED_SIZE = 48;
 pub type OpaquePublicKeyG2 = BoundedVec<u8, ConstU32<96>>;
-/// an opauqe hash type
+/// an opaque hash type
 pub type BoundedHash = BoundedVec<u8, ConstU32<32>>;
 /// the round number to track rounds of the beacon
 pub type RoundNumber = u64;
@@ -169,8 +168,6 @@ pub struct DrandResponseBody {
 	/// BLS sig for the current round (todo: use Signature)
 	#[serde(with = "hex::serde")]
 	pub signature: Vec<u8>,
-	// /// BLS sig from the previous round
-	// pub previous_signature: Option<Vec<u8>>,
 }
 
 impl DrandResponseBody {
@@ -247,8 +244,6 @@ pub struct Pulse {
 	pub randomness: BoundedVec<u8, ConstU32<32>>,
 	/// BLS sig for the current round (todo: use Signature)
 	pub signature: BoundedVec<u8, ConstU32<144>>,
-	// /// BLS sig from the previous round
-	// pub previous_signature: Option<Vec<u8>>,
 }
 
 #[frame_support::pallet]
@@ -318,7 +313,7 @@ pub mod pallet {
 			if BeaconConfig::<T>::get().is_none() {
 				if let Err(e) = Self::fetch_drand_config() {
 					log::error!(
-						"Failed to fetch chain info from drand, are you sure the chain hash is valid? {:?}",
+						"Failed to fetch chain config from drand, are you sure the chain hash is valid? {:?}",
 						e
 					);
 				}
@@ -415,6 +410,11 @@ impl<T: Config> Pallet<T> {
 
 		let results = signer
 			.send_signed_transaction(|_account| Call::set_beacon_config { config: config.clone() });
+
+		if results.is_empty() {
+			log::error!("Empty result from config: {:?}", config);
+		}
+
 		for (acc, res) in &results {
 			match res {
 				Ok(()) => log::info!("[{:?}] Submitted new config: {:?}", acc.id, config),
@@ -458,11 +458,18 @@ impl<T: Config> Pallet<T> {
 	/// Query the endpoint `{api}/{chainHash}/info` to receive information about the drand chain
 	/// Valid response bodies are deserialized into `BeaconInfoResponse`
 	fn fetch_drand_chain_info() -> Result<String, http::Error> {
+		// TODO: move this value to config
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
 		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, QUICKNET_CHAIN_HASH);
 		let request = http::Request::get(uri);
-		let pending = request.deadline(deadline).send().map_err(|_| http::Error::IoError)?;
-		let response = pending.try_wait(deadline).map_err(|_| http::Error::DeadlineReached)??;
+		let pending = request.deadline(deadline).send().map_err(|_| {
+			log::warn!("HTTP IO Error");
+			http::Error::IoError
+		})?;
+		let response = pending.try_wait(deadline).map_err(|_| {
+			log::warn!("HTTP Deadline Reached");
+			http::Error::DeadlineReached
+		})??;
 
 		if response.code != 200 {
 			log::warn!("Unexpected status code: {}", response.code);
@@ -507,20 +514,6 @@ impl<T: Config> Pallet<T> {
 
 		bounded_rand
 	}
-
-	// pub fn pulse_by_block_number(block_number: BlockNumberFor<T>) -> Option<Vec<u8>> {
-	// 	if let Some(idx) = PulseIndex::<T>::get(block_number)  {
-	// 		let pulses = Pulses::<T>::get();
-	// 		// make sure the index is valid
-	// 		if pulses.len() < idx as usize {
-	// 			return None;
-	// 		}
-
-	// 		return Some(pulses[idx as usize].randomness.clone().into());
-	// 	}
-
-	// 	None
-	// }
 }
 
 /// construct a message (e.g. signed by drand)

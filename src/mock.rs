@@ -2,24 +2,14 @@ use crate as pallet_drand_bridge;
 use crate::*;
 use frame_support::{
 	derive_impl,
-	traits::{ConstU16, ConstU32, ConstU64},
+	traits::{ConstU16, ConstU64},
 };
-use crate::*;
-use codec::Decode;
-use frame_support::{assert_ok, parameter_types};
-use sp_core::{
-	offchain::{testing, OffchainWorkerExt, TransactionPoolExt},
-	sr25519::Signature,
-	H256,
-};
-use std::sync::Arc;
+use sp_core::{sr25519::Signature, H256};
 
-use sp_keystore::{KeystoreExt};
 use sp_runtime::{
-	BuildStorage,
-	testing::{Header, TestXt},
+	testing::TestXt,
 	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
-	RuntimeAppPublic,
+	BuildStorage,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -70,7 +60,7 @@ impl frame_system::offchain::SigningTypes for Test {
 
 impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
 where
-RuntimeCall: From<LocalCall>,
+	RuntimeCall: From<LocalCall>,
 {
 	type OverarchingCall = RuntimeCall;
 	type Extrinsic = Extrinsic;
@@ -78,7 +68,7 @@ RuntimeCall: From<LocalCall>,
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
 where
-RuntimeCall: From<LocalCall>,
+	RuntimeCall: From<LocalCall>,
 {
 	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
 		call: RuntimeCall,
