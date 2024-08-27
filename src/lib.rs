@@ -26,14 +26,17 @@ use ark_serialize::CanonicalSerialize;
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Randomness;
-use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
+use frame_system::offchain::SignedPayload;
+use frame_system::offchain::SigningTypes;
+use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendUnsignedTransaction, Signer};
 use frame_system::pallet_prelude::BlockNumberFor;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sp_ark_bls12_381::{G1Affine as G1AffineOpt, G2Affine as G2AffineOpt};
 use sp_runtime::{
 	offchain::{http, Duration},
-	traits::{Hash, One},
+	traits::{Hash, One, Zero},
+	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	KeyTypeId,
 };
 
@@ -207,6 +210,23 @@ pub struct BeaconConfiguration {
 	pub metadata: Metadata,
 }
 
+/// Payload used by to hold the beacon
+/// config required to submit a transaction.
+#[derive(Encode, Decode, Debug, Clone, PartialEq, scale_info::TypeInfo)]
+pub struct BeaconConfigurationPayload<Public, BlockNumber> {
+	pub block_number: BlockNumber,
+	pub config: BeaconConfiguration,
+	pub public: Public,
+}
+
+impl<T: SigningTypes> SignedPayload<T>
+	for BeaconConfigurationPayload<T::Public, BlockNumberFor<T>>
+{
+	fn public(&self) -> T::Public {
+		self.public.clone()
+	}
+}
+
 /// metadata for the drand beacon configuration
 #[derive(
 	Clone,
@@ -246,6 +266,21 @@ pub struct Pulse {
 	pub signature: BoundedVec<u8, ConstU32<144>>,
 }
 
+/// Payload used by to hold the pulse
+/// data required to submit a transaction.
+#[derive(Encode, Decode, Debug, Clone, PartialEq, scale_info::TypeInfo)]
+pub struct PulsePayload<Public, BlockNumber> {
+	pub block_number: BlockNumber,
+	pub pulse: Pulse,
+	pub public: Public,
+}
+
+impl<T: SigningTypes> SignedPayload<T> for PulsePayload<T::Public, BlockNumberFor<T>> {
+	fn public(&self) -> T::Public {
+		self.public.clone()
+	}
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -264,8 +299,12 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 		/// something that knows how to verify beacon pulses
 		type Verifier: Verifier;
-		/// The origin permissioned to update beacon configurations
-		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		/// A configuration for base priority of unsigned transactions.
+		///
+		/// This is exposed so that it can be tuned for particular runtime, when
+		/// multiple pallets send unsigned transactions.
+		#[pallet::constant]
+		type UnsignedPriority: Get<TransactionPriority>;
 	}
 
 	/// the drand beacon configuration
@@ -277,6 +316,14 @@ pub mod pallet {
 	pub type Pulses<T: Config> =
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, Pulse, OptionQuery>;
 
+	/// Defines the block when next unsigned transaction will be accepted.
+	///
+	/// To prevent spam of unsigned (and unpaid!) transactions on the network,
+	/// we only allow one transaction per block.
+	/// This storage entry defines when new transaction is going to be accepted.
+	#[pallet::storage]
+	pub(super) type NextUnsignedAt<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -285,8 +332,6 @@ pub mod pallet {
 		NewPulse {
 			/// The new value set.
 			round: RoundNumber,
-			/// The account who set the new value.
-			who: T::AccountId,
 		},
 	}
 
@@ -308,23 +353,55 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn offchain_worker(_bn: BlockNumberFor<T>) {
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number - One::one());
+			log::info!("[OCW] Current block: {:?} (parent hash: {:?})", block_number, parent_hash);
 			// if the beacon config isn't available, get it now
 			if BeaconConfig::<T>::get().is_none() {
-				if let Err(e) = Self::fetch_drand_config() {
+				if let Err(e) = Self::fetch_drand_config_and_send(block_number) {
 					log::error!(
-						"Failed to fetch chain config from drand, are you sure the chain hash is valid? {:?}",
+						"[OCW] Failed to fetch chain config from drand, are you sure the chain hash is valid? {:?}",
 						e
 					);
 				}
 			} else {
 				// otherwise query drand
-				if let Err(e) = Self::fetch_drand_and_send_signed() {
+				if let Err(e) = Self::fetch_drand_value_and_send_unsigned(block_number) {
 					log::error!(
-						"Failed to fetch chain info from drand, are you sure the chain hash is valid? {:?}",
+						"[OCW] Failed to fetch chain info from drand, are you sure the chain hash is valid? {:?}",
 						e
 					);
 				}
+			}
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		/// Validate unsigned call to this module.
+		///
+		/// By default unsigned transactions are disallowed, but implementing the validator
+		/// here we make sure that some particular calls (the ones produced by offchain worker)
+		/// are being whitelisted and marked as valid.
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::set_beacon_config { config_payload: ref payload, ref signature } => {
+					Self::validate_signature_and_parameters(
+						payload,
+						signature,
+						&payload.block_number,
+					)
+				},
+				Call::write_pulse { pulse_payload: ref payload, ref signature } => {
+					Self::validate_signature_and_parameters(
+						payload,
+						signature,
+						&payload.block_number,
+					)
+				},
+				_ => InvalidTransaction::Call.into(),
 			}
 		}
 	}
@@ -334,31 +411,48 @@ pub mod pallet {
 		/// Verify and write a pulse from the beacon into the runtime
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::write_pulse())]
-		pub fn write_pulse(origin: OriginFor<T>, pulse: Pulse) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+		pub fn write_pulse(
+			origin: OriginFor<T>,
+			pulse_payload: PulsePayload<T::Public, BlockNumberFor<T>>,
+			_signature: T::Signature,
+		) -> DispatchResult {
+			ensure_none(origin)?;
 
 			match BeaconConfig::<T>::get() {
 				Some(config) => {
-					let is_verified = T::Verifier::verify(config, pulse.clone()).map_err(|s| {
-						log::error!("Could not verify the pulse due to: {}", s);
-						Error::<T>::PulseVerificationError
-					})?;
+					let is_verified = T::Verifier::verify(config, pulse_payload.pulse.clone())
+						.map_err(|s| {
+							log::error!("Could not verify the pulse due to: {}", s);
+							Error::<T>::PulseVerificationError
+						})?;
 
 					if is_verified {
 						let current_block = frame_system::Pallet::<T>::block_number();
+						let mut last_block = current_block.clone();
 
-						// Retrieve the last pulse index and verify the round number
-						if let Some(last_pulse) = Pulses::<T>::get(current_block - One::one()) {
-							frame_support::ensure!(
-								last_pulse.round < pulse.round,
-								Error::<T>::InvalidRoundNumber
-							);
+						// TODO: improve this, it's not efficient as it can be very slow when the history is large.
+						// We could set a new storage value with the latest round.
+						// Retrieve the lastest pulse and verify the round number
+						loop {
+							if let Some(last_pulse) = Pulses::<T>::get(last_block) {
+								frame_support::ensure!(
+									last_pulse.round < pulse_payload.pulse.round,
+									Error::<T>::InvalidRoundNumber
+								);
+								break;
+							}
+							if last_block == Zero::zero() {
+								break;
+							}
+							last_block -= One::one();
 						}
 
 						// Store the new pulse
-						Pulses::<T>::insert(current_block, pulse.clone());
+						Pulses::<T>::insert(current_block, pulse_payload.pulse.clone());
+						// now increment the block number at which we expect next unsigned transaction.
+						<NextUnsignedAt<T>>::put(current_block + One::one());
 						// Emit event for new pulse
-						Self::deposit_event(Event::NewPulse { round: pulse.round, who });
+						Self::deposit_event(Event::NewPulse { round: pulse_payload.pulse.round });
 					}
 				},
 				None => {
@@ -379,10 +473,16 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::set_beacon_config())]
 		pub fn set_beacon_config(
 			origin: OriginFor<T>,
-			config: BeaconConfiguration,
+			config_payload: BeaconConfigurationPayload<T::Public, BlockNumberFor<T>>,
+			_signature: T::Signature,
 		) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin)?;
-			BeaconConfig::<T>::put(config);
+			ensure_none(origin)?;
+			BeaconConfig::<T>::put(config_payload.config);
+
+			// now increment the block number at which we expect next unsigned transaction.
+			let current_block = frame_system::Pallet::<T>::block_number();
+			<NextUnsignedAt<T>>::put(current_block + One::one());
+
 			Self::deposit_event(Event::BeaconConfigChanged {});
 			Ok(())
 		}
@@ -392,7 +492,14 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// query drand's /info endpoint for the quicknet chain
 	/// then send a signed transaction to encode it on-chain
-	fn fetch_drand_config() -> Result<(), &'static str> {
+	fn fetch_drand_config_and_send(block_number: BlockNumberFor<T>) -> Result<(), &'static str> {
+		// Make sure we don't fetch the price if unsigned transaction is going to be rejected
+		// anyway.
+		let next_unsigned_at = NextUnsignedAt::<T>::get();
+		if next_unsigned_at > block_number {
+			return Err("Too early to send unsigned transaction");
+		}
+
 		let signer = Signer::<T, T::AuthorityId>::all_accounts();
 		if !signer.can_sign() {
 			return Err(
@@ -408,8 +515,14 @@ impl<T: Config> Pallet<T> {
 			.try_into_beacon_config()
 			.map_err(|_| "Failed to convert BeaconInfoResponse to BeaconConfiguration")?;
 
-		let results = signer
-			.send_signed_transaction(|_account| Call::set_beacon_config { config: config.clone() });
+		let results = signer.send_unsigned_transaction(
+			|account| BeaconConfigurationPayload {
+				block_number,
+				config: config.clone(),
+				public: account.public.clone(),
+			},
+			|config_payload, signature| Call::set_beacon_config { config_payload, signature },
+		);
 
 		if results.is_empty() {
 			log::error!("Empty result from config: {:?}", config);
@@ -427,13 +540,17 @@ impl<T: Config> Pallet<T> {
 
 	/// fetch the latest public pulse from the configured drand beacon
 	/// then send a signed transaction to include it on-chain
-	fn fetch_drand_and_send_signed() -> Result<(), &'static str> {
-		let signer = Signer::<T, T::AuthorityId>::all_accounts();
-		if !signer.can_sign() {
-			return Err(
-				"No local accounts available. Consider adding one via `author_insertKey` RPC.",
-			)?;
+	fn fetch_drand_value_and_send_unsigned(
+		block_number: BlockNumberFor<T>,
+	) -> Result<(), &'static str> {
+		// Make sure we don't fetch the price if unsigned transaction is going to be rejected
+		// anyway.
+		let next_unsigned_at = NextUnsignedAt::<T>::get();
+		if next_unsigned_at > block_number {
+			return Err("Too early to send unsigned transaction");
 		}
+
+		let signer = Signer::<T, T::AuthorityId>::all_accounts();
 
 		let pulse_body = Self::fetch_drand().map_err(|_| "Failed to query drand")?;
 		let unbounded_pulse: DrandResponseBody = serde_json::from_str(&pulse_body)
@@ -442,8 +559,14 @@ impl<T: Config> Pallet<T> {
 			.try_into_pulse()
 			.map_err(|_| "Received pulse contains invalid data")?;
 
-		let results =
-			signer.send_signed_transaction(|_account| Call::write_pulse { pulse: pulse.clone() });
+		let results = signer.send_unsigned_transaction(
+			|account| PulsePayload {
+				block_number,
+				pulse: pulse.clone(),
+				public: account.public.clone(),
+			},
+			|pulse_payload, signature| Call::write_pulse { pulse_payload, signature },
+		);
 
 		for (acc, res) in &results {
 			match res {
@@ -459,7 +582,7 @@ impl<T: Config> Pallet<T> {
 	/// Valid response bodies are deserialized into `BeaconInfoResponse`
 	fn fetch_drand_chain_info() -> Result<String, http::Error> {
 		// TODO: move this value to config
-		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
+		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(1_000));
 		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, QUICKNET_CHAIN_HASH);
 		let request = http::Request::get(uri);
 		let pending = request.deadline(deadline).send().map_err(|_| {
@@ -486,7 +609,7 @@ impl<T: Config> Pallet<T> {
 
 	/// fetches the latest randomness from drand's API
 	fn fetch_drand() -> Result<String, http::Error> {
-		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
+		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(1_000));
 		let uri: &str = &format!("{}/{}/public/latest", API_ENDPOINT, QUICKNET_CHAIN_HASH);
 		let request = http::Request::get(uri);
 		let pending = request.deadline(deadline).send().map_err(|_| http::Error::IoError)?;
@@ -513,6 +636,56 @@ impl<T: Config> Pallet<T> {
 		let bounded_rand: [u8; 32] = rand.into_inner().try_into().unwrap_or([0u8; 32]);
 
 		bounded_rand
+	}
+
+	fn validate_signature_and_parameters(
+		payload: &impl SignedPayload<T>,
+		signature: &T::Signature,
+		block_number: &BlockNumberFor<T>,
+	) -> TransactionValidity {
+		let signature_valid =
+			SignedPayload::<T>::verify::<T::AuthorityId>(payload, signature.clone());
+		if !signature_valid {
+			return InvalidTransaction::BadProof.into();
+		}
+		Self::validate_transaction_parameters(&block_number)
+	}
+
+	fn validate_transaction_parameters(block_number: &BlockNumberFor<T>) -> TransactionValidity {
+		// Now let's check if the transaction has any chance to succeed.
+		let next_unsigned_at = NextUnsignedAt::<T>::get();
+		if &next_unsigned_at > block_number {
+			return InvalidTransaction::Stale.into();
+		}
+		// Let's make sure to reject transactions from the future.
+		let current_block = frame_system::Pallet::<T>::block_number();
+		if &current_block < block_number {
+			return InvalidTransaction::Future.into();
+		}
+
+		ValidTransaction::with_tag_prefix("ExampleOffchainWorker")
+			// We set the priority to the value stored at `UnsignedPriority`.
+			.priority(T::UnsignedPriority::get())
+			// This transaction does not require anything else to go before into the pool.
+			// In theory we could require `previous_unsigned_at` transaction to go first,
+			// but it's not necessary in our case.
+			//.and_requires()
+			// We set the `provides` tag to be the same as `next_unsigned_at`. This makes
+			// sure only one transaction produced after `next_unsigned_at` will ever
+			// get to the transaction pool and will end up in the block.
+			// We can still have multiple transactions compete for the same "spot",
+			// and the one with higher priority will replace other one in the pool.
+			.and_provides(next_unsigned_at)
+			// The transaction is only valid for next block. After that it's
+			// going to be revalidated by the pool.
+			.longevity(1)
+			// It's fine to propagate that transaction to other peers, which means it can be
+			// created even by nodes that don't produce blocks.
+			// Note that sometimes it's better to keep it for yourself (if you are the block
+			// producer), since for instance in some schemes others may copy your solution and
+			// claim a reward.
+			.propagate(true)
+			.build()
 	}
 }
 
