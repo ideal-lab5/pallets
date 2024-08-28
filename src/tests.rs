@@ -1,178 +1,223 @@
 use crate::{
-	crypto, mock::*, BeaconConfig, BeaconInfoResponse, DrandResponseBody, Error, Event, Pulse,
-	PulsePayload, Pulses,
+	mock::*, BeaconConfig, BeaconConfigurationPayload, BeaconInfoResponse, DrandResponseBody,
+	Error, Event, Pulse, PulsePayload, Pulses,
 };
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::{assert_noop, assert_ok};
-use frame_system::offchain::SignedPayload;
-use sp_core::{ecdsa::Signature, offchain::testing};
-use sp_keystore::{testing::MemoryKeystore, Keystore};
-use sp_runtime::{
-	offchain::{
-		testing::{PendingRequest, TestOffchainExt},
-		OffchainWorkerExt,
-	},
-	testing::TestXt,
+use sp_runtime::offchain::{
+	testing::{PendingRequest, TestOffchainExt},
+	OffchainWorkerExt,
 };
 
 pub const DRAND_RESPONSE: &str = "{\"round\":9683710,\"randomness\":\"87f03ef5f62885390defedf60d5b8132b4dc2115b1efc6e99d166a37ab2f3a02\",\"signature\":\"b0a8b04e009cf72534321aca0f50048da596a3feec1172a0244d9a4a623a3123d0402da79854d4c705e94bc73224c342\"}";
 pub const QUICKNET_INFO_RESPONSE: &str = "{\"public_key\":\"83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a\",\"period\":3,\"genesis_time\":1692803367,\"hash\":\"52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971\",\"groupHash\":\"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e\",\"schemeID\":\"bls-unchained-g1-rfc9380\",\"metadata\":{\"beaconID\":\"quicknet\"}}";
 
-type Extrinsic = TestXt<RuntimeCall, ()>;
-
 #[test]
 fn can_fail_submit_valid_pulse_when_beacon_config_missing() {
-	// let (pool, pool_state) = testing::TestTransactionPoolExt::new();
-
 	new_test_ext().execute_with(|| {
 		// const PHRASE: &str =
-		// "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+		// "toddler good author symptom dumb smooth clerk reopen grain between manual doll";
 
-		// let keystore = MemoryKeystore::new();
-
-		// keystore
-		// 	.sr25519_generate_new(crate::crypto::Public::ID, Some(&format!("{}/hunter1", PHRASE)))
-		// 	.unwrap();
-
-		// let public_key = *keystore.sr25519_public_keys(crate::crypto::Public::ID).get(0).unwrap();
+		// let (pair, _) = sp_core::sr25519::Pair::from_phrase(PHRASE, None).unwrap();
 
 		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
 		let p: Pulse = u_p.try_into_pulse().unwrap();
 
 		let alice = sp_keyring::Sr25519Keyring::Alice;
-		System::set_block_number(1);
 
-		let pulse_payload = PulsePayload { pulse: p.clone(), public: alice.public().clone() };
+		let block_number = 1;
+		System::set_block_number(block_number);
 
-		// let signature: <Test as frame_system::offchain::SigningTypes>::Signature = pulse_payload.sign::<<Test as crate::pallet::Config>::AuthorityId>().unwrap();
-		// let tx = pool_state.write().transactions.pop().unwrap();
-		// let tx = Extrinsic::decode(&mut &*tx).unwrap();
+		let pulse_payload = PulsePayload { block_number, pulse: p.clone(), public: alice.public() };
 
-		let signature = alice.sign(&pulse_payload.encode());
-		// Dispatch a signed extrinsic.
-		assert_ok!(Drand::write_pulse(
-			RuntimeOrigin::signed(alice.public().clone()),
-			PulsePayload { pulse: p.clone(), public: alice.public().clone() },
-			signature
-		));
-		// // Read pallet storage and assert an expected result.
+		// Note that here we are using a default signature and not the real one.
+		// The reason is it doesn't really matter here because the signature is validated in the
+		// transaction validation phase not in the dispatchable itself.
+		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+
+		// Dispatch an unsigned extrinsic.
+		assert_ok!(Drand::write_pulse(RuntimeOrigin::none(), pulse_payload, signature));
+		// Read pallet storage and assert an expected result.
 		let pulse = Pulses::<Test>::get(1);
 		assert_eq!(pulse, None);
 	});
 }
 
-// #[test]
-// fn can_submit_valid_pulse_when_beacon_config_exists() {
-// 	new_test_ext().execute_with(|| {
-// 		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
-// 		let p: Pulse = u_p.try_into_pulse().unwrap();
+#[test]
+fn can_submit_valid_pulse_when_beacon_config_exists() {
+	new_test_ext().execute_with(|| {
+		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
+		let p: Pulse = u_p.try_into_pulse().unwrap();
 
-// 		let alice = sp_keyring::Sr25519Keyring::Alice.public();
-// 		System::set_block_number(1);
+		let alice = sp_keyring::Sr25519Keyring::Alice;
+		let block_number = 1;
+		System::set_block_number(block_number);
 
-// 		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
-// 		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::root(), info.clone().try_into_beacon_config().unwrap()));
+		// Set the beacon config
+		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
+		let config_payload = BeaconConfigurationPayload {
+			block_number,
+			config: info.clone().try_into_beacon_config().unwrap(),
+			public: alice.public(),
+		};
+		// Note that here we are using a default signature and not the real one.
+		// The reason is it doesn't really matter here because the signature is validated in the
+		// transaction validation phase not in the dispatchable itself.
+		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::none(), config_payload, signature));
 
-// 		// Dispatch a signed extrinsic.
-// 		assert_ok!(Drand::write_pulse(
-// 			RuntimeOrigin::signed(alice.clone()),
-// 			p.clone())
-// 		);
-// 		// // Read pallet storage and assert an expected result.
-// 		let pulse = Pulses::<Test>::get(1);
-// 		assert!(pulse.is_some());
-// 		assert_eq!(pulse, Some(p));
-// 		// // Assert that the correct event was deposited
-// 		System::assert_last_event(Event::NewPulse {
-// 			round: 9683710,
-// 			who: alice,
-// 		}.into());
-// 	});
-// }
+		let pulse_payload = PulsePayload { pulse: p.clone(), block_number, public: alice.public() };
 
-// #[test]
-// fn rejects_invalid_pulse_bad_signature() {
-// 	new_test_ext().execute_with(|| {
-// 		let bad_http_response = "{\"round\":9683710,\"randomness\":\"87f03ef5f62885390defedf60d5b8132b4dc2115b1efc6e99d166a37ab2f3a02\",\"signature\":\"b0a8b04e009cf72534321aca0f50048da596a3feec1172a0244d9a4a623a3123d0402da79854d4c705e94bc73224c341\"}";
-// 		let u_p: DrandResponseBody = serde_json::from_str(bad_http_response).unwrap();
-// 		let p: Pulse = u_p.try_into_pulse().unwrap();
-// 		let alice = sp_keyring::Sr25519Keyring::Alice.public();
-// 		System::set_block_number(1);
-// 		assert_ok!(Drand::write_pulse(
-// 			RuntimeOrigin::signed(alice.clone()),
-// 			p.clone())
-// 		);
-// 		let pulse = Pulses::<Test>::get(1);
-// 		assert!(pulse.is_none());
-// 	});
-// }
+		// Dispatch an unsigned extrinsic.
+		assert_ok!(Drand::write_pulse(RuntimeOrigin::none(), pulse_payload, signature));
 
-// #[test]
-// fn rejects_pulses_with_non_incremental_round_numbers() {
-// 	new_test_ext().execute_with(|| {
-// 		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
-// 		let p: Pulse = u_p.try_into_pulse().unwrap();
+		// Read pallet storage and assert an expected result.
+		let pulse = Pulses::<Test>::get(1);
+		assert!(pulse.is_some());
+		assert_eq!(pulse, Some(p));
+		// Assert that the correct event was deposited
+		System::assert_last_event(Event::NewPulse { round: 9683710 }.into());
+	});
+}
 
-// 		let alice = sp_keyring::Sr25519Keyring::Alice.public();
-// 		System::set_block_number(1);
+#[test]
+fn rejects_invalid_pulse_bad_signature() {
+	new_test_ext().execute_with(|| {
+		let alice = sp_keyring::Sr25519Keyring::Alice;
+		let block_number = 1;
+		System::set_block_number(block_number);
 
-// 		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
-// 		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::root(), info.clone().try_into_beacon_config().unwrap()));
+		// Set the beacon config
+		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
+		let config_payload = BeaconConfigurationPayload {
+			block_number,
+			config: info.clone().try_into_beacon_config().unwrap(),
+			public: alice.public(),
+		};
+		// Note that here we are using a default signature and not the real one.
+		// The reason is it doesn't really matter here because the signature is validated in the
+		// transaction validation phase not in the dispatchable itself.
+		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::none(), config_payload, signature));
 
-// 		assert_ok!(Drand::write_pulse(
-// 			RuntimeOrigin::signed(alice.clone()),
-// 			p.clone())
-// 		);
-// 		let pulse = Pulses::<Test>::get(1);
-// 		assert!(pulse.is_some());
+		// Get a bad pulse
+		let bad_http_response = "{\"round\":9683710,\"randomness\":\"87f03ef5f62885390defedf60d5b8132b4dc2115b1efc6e99d166a37ab2f3a02\",\"signature\":\"b0a8b04e009cf72534321aca0f50048da596a3feec1172a0244d9a4a623a3123d0402da79854d4c705e94bc73224c341\"}";
+		let u_p: DrandResponseBody = serde_json::from_str(bad_http_response).unwrap();
+		let p: Pulse = u_p.try_into_pulse().unwrap();
 
-// 		System::assert_last_event(Event::NewPulse {
-// 			round: 9683710,
-// 			who: alice,
-// 		}.into());
-// 		System::set_block_number(2);
+		// Set the pulse
+		let pulse_payload = PulsePayload {
+			pulse: p.clone(),
+			block_number,
+			public: alice.public(),
+		};
+		let signature = alice.sign(&pulse_payload.encode());
+		assert_noop!(Drand::write_pulse(
+			RuntimeOrigin::none(),
+			pulse_payload,
+			signature),
+			Error::<Test>::PulseVerificationError
+		);
+		let pulse = Pulses::<Test>::get(1);
+		assert!(pulse.is_none());
+	});
+}
 
-// 		assert_noop!(Drand::write_pulse(
-// 			RuntimeOrigin::signed(alice.clone()),
-// 			p.clone()),
-// 			Error::<Test>::InvalidRoundNumber,
-// 		);
-// 	});
-// }
+#[test]
+fn rejects_pulses_with_non_incremental_round_numbers() {
+	new_test_ext().execute_with(|| {
+		let block_number = 1;
+		let alice = sp_keyring::Sr25519Keyring::Alice;
+		System::set_block_number(block_number);
 
-// #[test]
-// fn root_can_submit_beacon_info() {
-// 	new_test_ext().execute_with(|| {
-// 		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
-// 		assert!(BeaconConfig::<Test>::get().is_none());
-// 		System::set_block_number(1);
-// 		// Dispatch a signed extrinsic.
-// 		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::root(), info.clone().try_into_beacon_config().unwrap()));
+		// Set the beacon config
+		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
+		let config_payload = BeaconConfigurationPayload {
+			block_number,
+			config: info.clone().try_into_beacon_config().unwrap(),
+			public: alice.public(),
+		};
+		// Note that here we are using a default signature and not the real one.
+		// The reason is it doesn't really matter here because the signature is validated in the
+		// transaction validation phase not in the dispatchable itself.
+		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::none(), config_payload, signature));
 
-// 		assert!(
-// 			BeaconConfig::<Test>::get().unwrap()
-// 				.eq(&info.try_into_beacon_config().unwrap()
-// 		));
-// 	});
-// }
+		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
+		let p: Pulse = u_p.try_into_pulse().unwrap();
+		let pulse_payload = PulsePayload { pulse: p.clone(), block_number, public: alice.public() };
 
-// #[test]
-// fn non_root_cannot_submit_beacon_info() {
-// 	new_test_ext().execute_with(|| {
-// 		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
-// 		let alice = sp_keyring::Sr25519Keyring::Alice.public();
-// 		assert!(BeaconConfig::<Test>::get().is_none());
-// 		System::set_block_number(1);
-// 		// Dispatch a signed extrinsic.
-// 		assert_noop!(
-// 			Drand::set_beacon_config(
-// 				RuntimeOrigin::signed(alice.clone()),
-// 				info.clone().try_into_beacon_config().unwrap()
-// 			),
-// 			sp_runtime::DispatchError::BadOrigin,
-// 		);
-// 	});
-// }
+		// Dispatch an unsigned extrinsic.
+		assert_ok!(Drand::write_pulse(RuntimeOrigin::none(), pulse_payload.clone(), signature));
+		let pulse = Pulses::<Test>::get(1);
+		assert!(pulse.is_some());
+
+		System::assert_last_event(Event::NewPulse { round: 9683710 }.into());
+		System::set_block_number(2);
+
+		assert_noop!(
+			Drand::write_pulse(RuntimeOrigin::none(), pulse_payload, signature),
+			Error::<Test>::InvalidRoundNumber,
+		);
+	});
+}
+
+#[test]
+fn root_cannot_submit_beacon_info() {
+	new_test_ext().execute_with(|| {
+		assert!(BeaconConfig::<Test>::get().is_none());
+		let block_number = 1;
+		let alice = sp_keyring::Sr25519Keyring::Alice;
+		System::set_block_number(block_number);
+
+		// Set the beacon config
+		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
+		let config_payload = BeaconConfigurationPayload {
+			block_number,
+			config: info.clone().try_into_beacon_config().unwrap(),
+			public: alice.public(),
+		};
+		// Note that here we are using a default signature and not the real one.
+		// The reason is it doesn't really matter here because the signature is validated in the
+		// transaction validation phase not in the dispatchable itself.
+		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		assert_noop!(
+			Drand::set_beacon_config(RuntimeOrigin::root(), config_payload, signature),
+			sp_runtime::DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
+fn signed_cannot_submit_beacon_info() {
+	new_test_ext().execute_with(|| {
+		assert!(BeaconConfig::<Test>::get().is_none());
+		let block_number = 1;
+		let alice = sp_keyring::Sr25519Keyring::Alice;
+		System::set_block_number(block_number);
+
+		// Set the beacon config
+		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
+		let config_payload = BeaconConfigurationPayload {
+			block_number,
+			config: info.clone().try_into_beacon_config().unwrap(),
+			public: alice.public(),
+		};
+		// Note that here we are using a default signature and not the real one.
+		// The reason is it doesn't really matter here because the signature is validated in the
+		// transaction validation phase not in the dispatchable itself.
+		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		// Dispatch a signed extrinsic
+		assert_noop!(
+			Drand::set_beacon_config(
+				RuntimeOrigin::signed(alice.public().clone()),
+				config_payload,
+				signature
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+	});
+}
 
 #[test]
 fn can_execute_and_handle_valid_http_responses() {
