@@ -165,7 +165,7 @@ impl BeaconInfoResponse {
 pub struct DrandResponseBody {
 	/// the randomness round number
 	pub round: RoundNumber,
-	/// the sha256 hash of the signature 
+	/// the sha256 hash of the signature
 	// TODO: use Hash (https://github.com/ideal-lab5/pallet-drand/issues/2)
 	#[serde(with = "hex::serde")]
 	pub randomness: Vec<u8>,
@@ -265,7 +265,7 @@ pub struct Pulse {
 	/// the sha256 hash of the signature
 	// TODO: use Hash (https://github.com/ideal-lab5/pallet-drand/issues/2)
 	pub randomness: BoundedVec<u8, ConstU32<32>>,
-	/// BLS sig for the current round 
+	/// BLS sig for the current round
 	// TODO: use Signature (https://github.com/ideal-lab5/pallet-drand/issues/2)
 	pub signature: BoundedVec<u8, ConstU32<144>>,
 }
@@ -358,21 +358,19 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			let parent_hash = <frame_system::Pallet<T>>::block_hash(block_number - One::one());
-			log::info!("[OCW] Current block: {:?} (parent hash: {:?})", block_number, parent_hash);
 			// if the beacon config isn't available, get it now
 			if BeaconConfig::<T>::get().is_none() {
 				if let Err(e) = Self::fetch_drand_config_and_send(block_number) {
 					log::error!(
-						"[OCW] Failed to fetch chain config from drand, are you sure the chain hash is valid? {:?}",
+						"Failed to fetch chain config from drand, are you sure the chain hash is valid? {:?}",
 						e
 					);
 				}
 			} else {
 				// otherwise query drand
-				if let Err(e) = Self::fetch_drand_value_and_send_unsigned(block_number) {
+				if let Err(e) = Self::fetch_drand_pulse_and_send_unsigned(block_number) {
 					log::error!(
-						"[OCW] Failed to fetch chain info from drand, are you sure the chain hash is valid? {:?}",
+						"Failed to fetch pulse from drand, are you sure the chain hash is valid? {:?}",
 						e
 					);
 				}
@@ -547,7 +545,7 @@ impl<T: Config> Pallet<T> {
 
 	/// fetch the latest public pulse from the configured drand beacon
 	/// then send a signed transaction to include it on-chain
-	fn fetch_drand_value_and_send_unsigned(
+	fn fetch_drand_pulse_and_send_unsigned(
 		block_number: BlockNumberFor<T>,
 	) -> Result<(), &'static str> {
 		// Make sure we don't fetch the price if unsigned transaction is going to be rejected
