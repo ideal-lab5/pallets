@@ -1,12 +1,19 @@
 use crate::{
-	mock::*, BeaconConfig, BeaconConfigurationPayload, BeaconInfoResponse, DrandResponseBody,
+	mock::*, BeaconConfig, BeaconConfigurationPayload, BeaconInfoResponse, Call, DrandResponseBody,
 	Error, Event, Pulse, PulsePayload, Pulses,
 };
 use codec::Encode;
-use frame_support::{assert_noop, assert_ok};
-use sp_runtime::offchain::{
-	testing::{PendingRequest, TestOffchainExt},
-	OffchainWorkerExt,
+use frame_support::{
+	assert_noop, assert_ok,
+	pallet_prelude::{InvalidTransaction, TransactionSource},
+};
+use sp_core::Pair;
+use sp_runtime::{
+	offchain::{
+		testing::{PendingRequest, TestOffchainExt},
+		OffchainWorkerExt,
+	},
+	traits::ValidateUnsigned,
 };
 
 pub const DRAND_RESPONSE: &str = "{\"round\":9683710,\"randomness\":\"87f03ef5f62885390defedf60d5b8132b4dc2115b1efc6e99d166a37ab2f3a02\",\"signature\":\"b0a8b04e009cf72534321aca0f50048da596a3feec1172a0244d9a4a623a3123d0402da79854d4c705e94bc73224c342\"}";
@@ -15,11 +22,6 @@ pub const QUICKNET_INFO_RESPONSE: &str = "{\"public_key\":\"83cf0f2896adee7eb8b5
 #[test]
 fn can_fail_submit_valid_pulse_when_beacon_config_missing() {
 	new_test_ext().execute_with(|| {
-		// const PHRASE: &str =
-		// "toddler good author symptom dumb smooth clerk reopen grain between manual doll";
-
-		// let (pair, _) = sp_core::sr25519::Pair::from_phrase(PHRASE, None).unwrap();
-
 		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
 		let p: Pulse = u_p.try_into_pulse().unwrap();
 
@@ -217,6 +219,65 @@ fn signed_cannot_submit_beacon_info() {
 			sp_runtime::DispatchError::BadOrigin
 		);
 	});
+}
+
+#[test]
+fn test_validate_unsigned_write_pulse() {
+	new_test_ext().execute_with(|| {
+		let block_number = 1;
+		let alice = sp_keyring::Sr25519Keyring::Alice;
+		System::set_block_number(block_number);
+		let payload =
+			PulsePayload { block_number, pulse: Default::default(), public: alice.public() };
+		let signature = alice.sign(&payload.encode());
+
+		let call =
+			Call::write_pulse { pulse_payload: payload.clone(), signature: signature.clone() };
+
+		let source = TransactionSource::External;
+		let validity = Drand::validate_unsigned(source, &call);
+
+		assert_ok!(validity);
+	});
+}
+
+#[test]
+fn test_not_validate_unsigned_write_pulse_with_bad_proof() {
+	new_test_ext().execute_with(|| {
+		let block_number = 1;
+		let alice = sp_keyring::Sr25519Keyring::Alice;
+		System::set_block_number(block_number);
+		let payload =
+			PulsePayload { block_number, pulse: Default::default(), public: alice.public() };
+
+		// bad signature
+		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		let call =
+			Call::write_pulse { pulse_payload: payload.clone(), signature: signature.clone() };
+
+		let source = TransactionSource::External;
+		let validity = Drand::validate_unsigned(source, &call);
+
+		assert_noop!(validity, InvalidTransaction::BadProof);
+	});
+}
+
+#[test]
+#[ignore]
+fn test_validate_unsigned_write_pulse_by_non_authority() {
+	// TODO: https://github.com/ideal-lab5/pallet-drand/issues/3
+	todo!(
+		"the transaction should be validated even if the signer of the payload is not an authority"
+	);
+}
+
+#[test]
+#[ignore]
+fn test_not_validate_unsigned_set_beacon_config_by_non_autority() {
+	// TODO: https://github.com/ideal-lab5/pallet-drand/issues/3
+	todo!(
+		"the transaction should not be validated if the signer of the payload is not an authority"
+	);
 }
 
 #[test]
