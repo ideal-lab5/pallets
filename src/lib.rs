@@ -160,15 +160,17 @@ impl BeaconInfoResponse {
 }
 
 /// a pulse from the drand beacon
-/// the expected response body from the drand api endpoint `api.drand.sh/{chainId}/pulse/latest`
+/// the expected response body from the drand api endpoint `api.drand.sh/{chainId}/public/latest`
 #[derive(Debug, Decode, Default, PartialEq, Encode, Serialize, Deserialize)]
 pub struct DrandResponseBody {
 	/// the randomness round number
 	pub round: RoundNumber,
-	/// the sha256 hash of the signature (todo: use Hash)
+	/// the sha256 hash of the signature 
+	// TODO: use Hash (https://github.com/ideal-lab5/pallet-drand/issues/2)
 	#[serde(with = "hex::serde")]
 	pub randomness: Vec<u8>,
-	/// BLS sig for the current round (todo: use Signature)
+	/// BLS sig for the current round
+	// TODO: use Signature (https://github.com/ideal-lab5/pallet-drand/issues/2)
 	#[serde(with = "hex::serde")]
 	pub signature: Vec<u8>,
 }
@@ -260,9 +262,11 @@ pub struct Metadata {
 pub struct Pulse {
 	/// the randomness round number
 	pub round: RoundNumber,
-	/// the sha256 hash of the signature (todo: use Hash)
+	/// the sha256 hash of the signature
+	// TODO: use Hash (https://github.com/ideal-lab5/pallet-drand/issues/2)
 	pub randomness: BoundedVec<u8, ConstU32<32>>,
-	/// BLS sig for the current round (todo: use Signature)
+	/// BLS sig for the current round 
+	// TODO: use Signature (https://github.com/ideal-lab5/pallet-drand/issues/2)
 	pub signature: BoundedVec<u8, ConstU32<144>>,
 }
 
@@ -388,6 +392,8 @@ pub mod pallet {
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
 				Call::set_beacon_config { config_payload: ref payload, ref signature } => {
+					// TODO validate it is a trusted source as any well-formatted config would pass
+					// https://github.com/ideal-lab5/pallet-drand/issues/3
 					Self::validate_signature_and_parameters(
 						payload,
 						signature,
@@ -433,6 +439,7 @@ pub mod pallet {
 						// TODO: improve this, it's not efficient as it can be very slow when the history is large.
 						// We could set a new storage value with the latest round.
 						// Retrieve the lastest pulse and verify the round number
+						// https://github.com/ideal-lab5/pallet-drand/issues/4
 						loop {
 							if let Some(last_pulse) = Pulses::<T>::get(last_block) {
 								frame_support::ensure!(
@@ -559,6 +566,9 @@ impl<T: Config> Pallet<T> {
 			.try_into_pulse()
 			.map_err(|_| "Received pulse contains invalid data")?;
 
+		// TODO: verify, before sending the tx that the pulse.round is greater than the stored one
+		// https://github.com/ideal-lab5/pallet-drand/issues/4
+
 		let results = signer.send_unsigned_transaction(
 			|account| PulsePayload {
 				block_number,
@@ -582,6 +592,7 @@ impl<T: Config> Pallet<T> {
 	/// Valid response bodies are deserialized into `BeaconInfoResponse`
 	fn fetch_drand_chain_info() -> Result<String, http::Error> {
 		// TODO: move this value to config
+		// https://github.com/ideal-lab5/pallet-drand/issues/5
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(1_000));
 		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, QUICKNET_CHAIN_HASH);
 		let request = http::Request::get(uri);
@@ -609,6 +620,7 @@ impl<T: Config> Pallet<T> {
 
 	/// fetches the latest randomness from drand's API
 	fn fetch_drand() -> Result<String, http::Error> {
+		// TODO https://github.com/ideal-lab5/pallet-drand/issues/5
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(1_000));
 		let uri: &str = &format!("{}/{}/public/latest", API_ENDPOINT, QUICKNET_CHAIN_HASH);
 		let request = http::Request::get(uri);
@@ -663,13 +675,12 @@ impl<T: Config> Pallet<T> {
 			return InvalidTransaction::Future.into();
 		}
 
-		ValidTransaction::with_tag_prefix("ExampleOffchainWorker")
+		ValidTransaction::with_tag_prefix("DrandOffchainWorker")
 			// We set the priority to the value stored at `UnsignedPriority`.
 			.priority(T::UnsignedPriority::get())
 			// This transaction does not require anything else to go before into the pool.
 			// In theory we could require `previous_unsigned_at` transaction to go first,
 			// but it's not necessary in our case.
-			//.and_requires()
 			// We set the `provides` tag to be the same as `next_unsigned_at`. This makes
 			// sure only one transaction produced after `next_unsigned_at` will ever
 			// get to the transaction pool and will end up in the block.
