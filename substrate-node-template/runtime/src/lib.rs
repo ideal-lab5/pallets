@@ -281,16 +281,12 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-	pub const UnsignedPriority: u64 = 1 << 20;
-}
-
 impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
 	type Verifier = pallet_drand::QuicknetVerifier;
-	type UnsignedPriority = UnsignedPriority;
+	type UnsignedPriority = ConstU64<{ 1 << 20 }>;
 }
 
 parameter_types! {
