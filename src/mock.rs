@@ -1,7 +1,7 @@
 use crate as pallet_drand_bridge;
 use crate::*;
 use frame_support::{
-	derive_impl,
+	derive_impl, parameter_types,
 	traits::{ConstU16, ConstU64},
 };
 use sp_core::{sr25519::Signature, H256};
@@ -80,12 +80,16 @@ where
 	}
 }
 
+parameter_types! {
+	pub const UnsignedPriority: u64 = 1 << 20;
+}
+
 impl pallet_drand_bridge::Config for Test {
 	type AuthorityId = crypto::TestAuthId;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand_bridge::weights::SubstrateWeight<Test>;
 	type Verifier = QuicknetVerifier;
-	type UpdateOrigin = frame_system::EnsureRoot<AccountId>;
+	type UnsignedPriority = UnsignedPriority;
 }
 
 // Build genesis storage according to the mock runtime.

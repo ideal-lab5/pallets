@@ -10,10 +10,9 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	DispatchError,
 	traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature, SaturatedConversion,
+	ApplyExtrinsicResult, DispatchError, MultiSignature, SaturatedConversion,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -24,11 +23,12 @@ use frame_support::PalletId;
 use frame_system::{EnsureRoot, EnsureSigned};
 
 pub use frame_support::{
+	construct_runtime, derive_impl,
 	dynamic_params::{dynamic_pallet_params, dynamic_params},
-	construct_runtime, derive_impl, parameter_types,
+	parameter_types,
 	traits::{
-		ConstBool, ConstU128, ConstU32, ConstU64, ConstU8, KeyOwnerProofSystem, Randomness,
-		StorageInfo, Nothing,
+		ConstBool, ConstU128, ConstU32, ConstU64, ConstU8, KeyOwnerProofSystem, Nothing,
+		Randomness, StorageInfo,
 	},
 	weights::{
 		constants::{
@@ -53,15 +53,8 @@ pub use sp_runtime::{Perbill, Permill};
 use sp_core::crypto::UncheckedFrom;
 
 use pallet_contracts::{
-	DebugInfo, 
-	chain_extension::{
-		ChainExtension,
-		Environment,
-		Ext,
-		InitState,
-		RetVal,
-		SysConfig,
-	}
+	chain_extension::{ChainExtension, Environment, Ext, InitState, RetVal, SysConfig},
+	DebugInfo,
 };
 
 // /// Import the template pallet.
@@ -89,7 +82,6 @@ pub type Hash = sp_core::H256;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
-
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -289,12 +281,16 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const UnsignedPriority: u64 = 1 << 20;
+}
+
 impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
 	type Verifier = pallet_drand::QuicknetVerifier;
-	type UpdateOrigin = EnsureSigned<AccountId>;
+	type UnsignedPriority = UnsignedPriority;
 }
 
 parameter_types! {
@@ -424,11 +420,12 @@ where
 		public: <Signature as sp_runtime::traits::Verify>::Signer,
 		account: AccountId,
 		index: Index,
-	) -> Option<(RuntimeCall, <UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload)> {
+	) -> Option<(
+		RuntimeCall,
+		<UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
+	)> {
 		let period = BlockHashCount::get() as u64;
-		let current_block = System::block_number()
-			.saturated_into::<u64>()
-			.saturating_sub(1);
+		let current_block = System::block_number().saturated_into::<u64>().saturating_sub(1);
 		let tip = 0;
 		let extra: SignedExtra = (
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
@@ -460,7 +457,7 @@ impl frame_system::offchain::SigningTypes for Runtime {
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
 where
-RuntimeCall: From<C>,
+	RuntimeCall: From<C>,
 {
 	type OverarchingCall = RuntimeCall;
 	type Extrinsic = UncheckedExtrinsic;
@@ -853,39 +850,33 @@ pub mod interface {
 pub struct DrandExtension;
 
 impl ChainExtension<Runtime> for DrandExtension {
-	
-    fn call<E: Ext>(
-        &mut self,
-        env: Environment<E, InitState>,
-    ) -> Result<RetVal, DispatchError>
-    where
-        <E::T as SysConfig>::AccountId:
-            UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
-    {
+	fn call<E: Ext>(&mut self, env: Environment<E, InitState>) -> Result<RetVal, DispatchError>
+	where
+		<E::T as SysConfig>::AccountId: UncheckedFrom<<E::T as SysConfig>::Hash> + AsRef<[u8]>,
+	{
 		let func_id = env.func_id();
 		log::trace!(
 			target: "runtime",
 			"[ChainExtension]|call|func_id:{:}",
 			func_id
 		);
-        match func_id {	
-            1101 => {
-                let mut env = env.buf_in_buf_out();
+		match func_id {
+			1101 => {
+				let mut env = env.buf_in_buf_out();
 				let rand = Drand::random(&[]);
-				env.write(&rand.encode(), false, None).map_err(|_| {
-					DispatchError::Other("Failed to write output randomness")
-				})?;
-				
-				Ok(RetVal::Converging(0))
-            },
-            _ => {
-                log::error!("Called an unregistered `func_id`: {:}", func_id);
-                Err(DispatchError::Other("Unimplemented func_id"))
-            }
-        }
-    }
+				env.write(&rand.encode(), false, None)
+					.map_err(|_| DispatchError::Other("Failed to write output randomness"))?;
 
-    fn enabled() -> bool {
-        true
-    }
+				Ok(RetVal::Converging(0))
+			},
+			_ => {
+				log::error!("Called an unregistered `func_id`: {:}", func_id);
+				Err(DispatchError::Other("Unimplemented func_id"))
+			},
+		}
+	}
+
+	fn enabled() -> bool {
+		true
+	}
 }
