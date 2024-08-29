@@ -22,7 +22,7 @@ clap = { version = "4.5.3", features = ["derive"] }
 quote = "1.0.36"
 futures = { version = "0.3.30", features = ["thread-pool"] }
 serde_json = { version = "1.0.114", default-features = true }
-jsonrpsee = { version = "0.23", features = ["server"] }
+jsonrpsee = { version = "0.24", features = ["server"] }
 
 # substrate client
 sc-cli = { git = "https://github.com/paritytech/polkadot-sdk.git" }
@@ -71,12 +71,16 @@ node-template-runtime = { path = "../runtime" }
 
 # CLI-specific dependencies
 # try-runtime-cli = { git = "https://github.com/paritytech/polkadot-sdk.git",  optional = true }
+polkadot-sdk = { git = "https://github.com/paritytech/polkadot-sdk.git", features = ["experimental", "node"] }
 
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk.git" }
 
 [features]
-default = []
+default = ["std"]
+std = [
+	"polkadot-sdk/std",
+]
 # Dependencies that are only required if runtime benchmarking should be build.
 runtime-benchmarks = [
 	"frame-benchmarking-cli/runtime-benchmarks",

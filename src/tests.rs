@@ -7,7 +7,6 @@ use frame_support::{
 	assert_noop, assert_ok,
 	pallet_prelude::{InvalidTransaction, TransactionSource},
 };
-use sp_core::Pair;
 use sp_runtime::{
 	offchain::{
 		testing::{PendingRequest, TestOffchainExt},

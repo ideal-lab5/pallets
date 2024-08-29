@@ -39,7 +39,6 @@ use sp_runtime::{
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	KeyTypeId,
 };
-
 use w3f_bls::{EngineBLS, TinyBLS381};
 
 #[cfg(test)]
