@@ -5,7 +5,7 @@ use frame_support::{
 	traits::{ConstU16, ConstU64},
 };
 use sp_core::{sr25519::Signature, H256};
-
+use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
 use sp_runtime::{
 	testing::TestXt,
 	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
@@ -94,5 +94,15 @@ impl pallet_drand_bridge::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+
+	let mut ext = sp_io::TestExternalities::new(t);
+	let keystore = MemoryKeystore::new();
+	ext.register_extension(KeystoreExt::new(keystore.clone()));
+	sp_keystore::Keystore::sr25519_generate_new(
+		&keystore,
+		pallet_drand_bridge::KEY_TYPE,
+		Some("//Alice"),
+	).expect("Creating key with account Alice should succeed.");
+	ext
 }

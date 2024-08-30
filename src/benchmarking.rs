@@ -12,8 +12,8 @@ pub const QUICKNET_INFO_RESPONSE: &str = "{\"public_key\":\"83cf0f2896adee7eb8b5
 
 #[benchmarks(
 	where
-		T::Signature: Default,
-		T::Public: Default,
+		T::Signature: From<sp_core::sr25519::Signature>,
+		T::Public: From<sp_core::sr25519::Public>,
 )]
 mod benchmarks {
 	use super::*;
@@ -23,14 +23,18 @@ mod benchmarks {
 		let info: BeaconInfoResponse = serde_json::from_str(QUICKNET_INFO_RESPONSE).unwrap();
 		let config = info.try_into_beacon_config().unwrap();
 
+		let alice = sp_keyring::Sr25519Keyring::Alice.public();
+
 		let config_payload = BeaconConfigurationPayload {
 			block_number: 1u32.into(),
 			config: config.clone(),
-			public: Default::default(),
+			public: alice.into(),
 		};
 
+		let signature = T::AuthorityId::sign(&config_payload.encode(), alice.into()).unwrap();
+
 		#[extrinsic_call]
-		set_beacon_config(RawOrigin::None, config_payload.clone(), Default::default());
+		set_beacon_config(RawOrigin::None, config_payload.clone(), signature.into());
 		assert_eq!(BeaconConfig::<T>::get(), Some(config));
 	}
 
@@ -39,14 +43,13 @@ mod benchmarks {
 		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
 		let p: Pulse = u_p.try_into_pulse().unwrap();
 		let block_number = 1u32.into();
-		let pulse_payload = PulsePayload {
-			block_number,
-			pulse: p.clone(),
-			public: Default::default(),
-		};
+		let alice = sp_keyring::Sr25519Keyring::Alice.public();
+		let pulse_payload = PulsePayload { block_number, pulse: p.clone(), public: alice.into() };
+
+		let signature = T::AuthorityId::sign(&pulse_payload.encode(), alice.into()).unwrap();
 
 		#[extrinsic_call]
-		write_pulse(RawOrigin::None, pulse_payload.clone(), Default::default());
+		write_pulse(RawOrigin::None, pulse_payload.clone(), signature.into());
 		assert_eq!(Pulses::<T>::get(block_number), None);
 	}
 

@@ -84,7 +84,6 @@ frame-system-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.
 
 # The pallet in this template.
 pallet-drand = { path = "../../", default-features = false }
-# pallet-drand = { git = "https://github.com/ideal-lab5/pallet-drand.git", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk.git",  optional = true }
@@ -140,7 +139,9 @@ runtime-benchmarks = [
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
+	"pallet-contracts/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
+	"pallet-lottery/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-drand/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
