@@ -71,17 +71,14 @@ node-template-runtime = { path = "../runtime" }
 
 # Polkadot
 polkadot-sdk = { git = "https://github.com/paritytech/polkadot-sdk.git", features = ["experimental", "node"] }
-# xcm-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", default-features = false, package = "staging-xcm-builder" }
 
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk.git" }
-# polkadot-sdk = { git = "https://github.com/paritytech/polkadot-sdk.git", features = ["substrate-build-script-utils"] }
 
 [features]
 default = ["std"]
 std = [
 	"polkadot-sdk/std",
-	# "node-template-runtime/std",
 ]
 # Dependencies that are only required if runtime benchmarking should be build.
 runtime-benchmarks = [
@@ -91,7 +88,6 @@ runtime-benchmarks = [
 	"node-template-runtime/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"polkadot-sdk/runtime-benchmarks",
-	# "xcm-builder/runtime-benchmarks",
 ]
 # Enable features that allow the runtime to be tried and debugged. Name might be subject to change
 # in the near future.

@@ -43,10 +43,9 @@ ark-crypto-primitives = { version = "0.4.0", default-features = false, features 
 ark-scale = { version = "0.0.11", default-features = false, features = ["hazmat"] }
 w3f-bls = { git = "https://github.com/w3f/bls", default-features = false }
 sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
-sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
 
 [dev-dependencies]
-# sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
+sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk.git",  default-features = false }
 
 [features]
 default = ["std"]
