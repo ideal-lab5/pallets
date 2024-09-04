@@ -103,6 +103,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		&keystore,
 		pallet_drand_bridge::KEY_TYPE,
 		Some("//Alice"),
-	).expect("Creating key with account Alice should succeed.");
+	)
+	.expect("Creating key with account Alice should succeed.");
 	ext
 }

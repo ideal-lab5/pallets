@@ -12,7 +12,6 @@ pub const QUICKNET_INFO_RESPONSE: &str = "{\"public_key\":\"83cf0f2896adee7eb8b5
 
 #[benchmarks(
 	where
-		T::Signature: From<sp_core::sr25519::Signature>,
 		T::Public: From<sp_core::sr25519::Public>,
 )]
 mod benchmarks {
@@ -31,25 +30,23 @@ mod benchmarks {
 			public: alice.into(),
 		};
 
-		let signature = T::AuthorityId::sign(&config_payload.encode(), alice.into()).unwrap();
-
 		#[extrinsic_call]
-		set_beacon_config(RawOrigin::None, config_payload.clone(), signature.into());
+		set_beacon_config(RawOrigin::None, config_payload.clone(), None);
 		assert_eq!(BeaconConfig::<T>::get(), Some(config));
 	}
 
 	#[benchmark]
-	fn update_beacon_pulses() {
+	fn write_pulse() {
+		// TODO: bechmkark the longest `write_pulse` branch https://github.com/ideal-lab5/pallet-drand/issues/8
+
 		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
 		let p: Pulse = u_p.try_into_pulse().unwrap();
 		let block_number = 1u32.into();
 		let alice = sp_keyring::Sr25519Keyring::Alice.public();
 		let pulse_payload = PulsePayload { block_number, pulse: p.clone(), public: alice.into() };
 
-		let signature = T::AuthorityId::sign(&pulse_payload.encode(), alice.into()).unwrap();
-
 		#[extrinsic_call]
-		write_pulse(RawOrigin::None, pulse_payload.clone(), signature.into());
+		write_pulse(RawOrigin::None, pulse_payload.clone(), None);
 		assert_eq!(Pulses::<T>::get(block_number), None);
 	}
 
