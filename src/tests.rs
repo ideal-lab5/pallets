@@ -7,7 +7,6 @@ use frame_support::{
 	assert_noop, assert_ok,
 	pallet_prelude::{InvalidTransaction, TransactionSource},
 };
-use sp_core::Pair;
 use sp_runtime::{
 	offchain::{
 		testing::{PendingRequest, TestOffchainExt},
@@ -32,10 +31,9 @@ fn can_fail_submit_valid_pulse_when_beacon_config_missing() {
 
 		let pulse_payload = PulsePayload { block_number, pulse: p.clone(), public: alice.public() };
 
-		// Note that here we are using a default signature and not the real one.
-		// The reason is it doesn't really matter here because the signature is validated in the
+		// The signature doesn't really matter here because the signature is validated in the
 		// transaction validation phase not in the dispatchable itself.
-		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		let signature = None;
 
 		// Dispatch an unsigned extrinsic.
 		assert_ok!(Drand::write_pulse(RuntimeOrigin::none(), pulse_payload, signature));
@@ -62,10 +60,10 @@ fn can_submit_valid_pulse_when_beacon_config_exists() {
 			config: info.clone().try_into_beacon_config().unwrap(),
 			public: alice.public(),
 		};
-		// Note that here we are using a default signature and not the real one.
-		// The reason is it doesn't really matter here because the signature is validated in the
+
+		// The signature doesn't really matter here because the signature is validated in the
 		// transaction validation phase not in the dispatchable itself.
-		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		let signature = None;
 		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::none(), config_payload, signature));
 
 		let pulse_payload = PulsePayload { pulse: p.clone(), block_number, public: alice.public() };
@@ -96,10 +94,9 @@ fn rejects_invalid_pulse_bad_signature() {
 			config: info.clone().try_into_beacon_config().unwrap(),
 			public: alice.public(),
 		};
-		// Note that here we are using a default signature and not the real one.
-		// The reason is it doesn't really matter here because the signature is validated in the
+		// The signature doesn't really matter here because the signature is validated in the
 		// transaction validation phase not in the dispatchable itself.
-		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		let signature = None;
 		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::none(), config_payload, signature));
 
 		// Get a bad pulse
@@ -117,7 +114,7 @@ fn rejects_invalid_pulse_bad_signature() {
 		assert_noop!(Drand::write_pulse(
 			RuntimeOrigin::none(),
 			pulse_payload,
-			signature),
+			Some(signature)),
 			Error::<Test>::PulseVerificationError
 		);
 		let pulse = Pulses::<Test>::get(1);
@@ -139,10 +136,9 @@ fn rejects_pulses_with_non_incremental_round_numbers() {
 			config: info.clone().try_into_beacon_config().unwrap(),
 			public: alice.public(),
 		};
-		// Note that here we are using a default signature and not the real one.
-		// The reason is it doesn't really matter here because the signature is validated in the
+		// The signature doesn't really matter here because the signature is validated in the
 		// transaction validation phase not in the dispatchable itself.
-		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		let signature = None;
 		assert_ok!(Drand::set_beacon_config(RuntimeOrigin::none(), config_payload, signature));
 
 		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
@@ -179,10 +175,9 @@ fn root_cannot_submit_beacon_info() {
 			config: info.clone().try_into_beacon_config().unwrap(),
 			public: alice.public(),
 		};
-		// Note that here we are using a default signature and not the real one.
-		// The reason is it doesn't really matter here because the signature is validated in the
+		// The signature doesn't really matter here because the signature is validated in the
 		// transaction validation phase not in the dispatchable itself.
-		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		let signature = None;
 		assert_noop!(
 			Drand::set_beacon_config(RuntimeOrigin::root(), config_payload, signature),
 			sp_runtime::DispatchError::BadOrigin
@@ -205,10 +200,9 @@ fn signed_cannot_submit_beacon_info() {
 			config: info.clone().try_into_beacon_config().unwrap(),
 			public: alice.public(),
 		};
-		// Note that here we are using a default signature and not the real one.
-		// The reason is it doesn't really matter here because the signature is validated in the
+		// The signature doesn't really matter here because the signature is validated in the
 		// transaction validation phase not in the dispatchable itself.
-		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
+		let signature = None;
 		// Dispatch a signed extrinsic
 		assert_noop!(
 			Drand::set_beacon_config(
@@ -231,8 +225,7 @@ fn test_validate_unsigned_write_pulse() {
 			PulsePayload { block_number, pulse: Default::default(), public: alice.public() };
 		let signature = alice.sign(&payload.encode());
 
-		let call =
-			Call::write_pulse { pulse_payload: payload.clone(), signature: signature.clone() };
+		let call = Call::write_pulse { pulse_payload: payload.clone(), signature: Some(signature) };
 
 		let source = TransactionSource::External;
 		let validity = Drand::validate_unsigned(source, &call);
@@ -252,13 +245,32 @@ fn test_not_validate_unsigned_write_pulse_with_bad_proof() {
 
 		// bad signature
 		let signature = <Test as frame_system::offchain::SigningTypes>::Signature::default();
-		let call =
-			Call::write_pulse { pulse_payload: payload.clone(), signature: signature.clone() };
+		let call = Call::write_pulse { pulse_payload: payload.clone(), signature: Some(signature) };
 
 		let source = TransactionSource::External;
 		let validity = Drand::validate_unsigned(source, &call);
 
 		assert_noop!(validity, InvalidTransaction::BadProof);
+	});
+}
+
+#[test]
+fn test_not_validate_unsigned_write_pulse_with_no_payload_signature() {
+	new_test_ext().execute_with(|| {
+		let block_number = 1;
+		let alice = sp_keyring::Sr25519Keyring::Alice;
+		System::set_block_number(block_number);
+		let payload =
+			PulsePayload { block_number, pulse: Default::default(), public: alice.public() };
+
+		// no signature
+		let signature = None;
+		let call = Call::write_pulse { pulse_payload: payload.clone(), signature };
+
+		let source = TransactionSource::External;
+		let validity = Drand::validate_unsigned(source, &call);
+
+		assert_noop!(validity, InvalidTransaction::BadSigner);
 	});
 }
 

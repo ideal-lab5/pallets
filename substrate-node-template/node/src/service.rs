@@ -1,23 +1,20 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use futures::FutureExt;
+use node_template_runtime::{self, opaque::Block, RuntimeApi};
 use sc_client_api::{Backend, BlockBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_grandpa::SharedVoterState;
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager, WarpSyncParams};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
-use node_template_runtime::{self, opaque::Block, RuntimeApi};
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use std::{sync::Arc, time::Duration};
 
 /// Host runctions required for Substrate and Arkworks
 #[cfg(not(feature = "runtime-benchmarks"))]
 pub type HostFunctions =
-	(
-		sp_io::SubstrateHostFunctions, 
-		sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions
-	);
+	(sp_io::SubstrateHostFunctions, sp_crypto_ec_utils::bls12_381::host_calls::HostFunctions);
 
 /// Host runctions required for Substrate and Arkworks
 #[cfg(feature = "runtime-benchmarks")]
@@ -28,13 +25,9 @@ pub type HostFunctions = (
 );
 
 /// A specialized `WasmExecutor`
-pub type RuntimeExecutor = sc_executor::WasmExecutor::<HostFunctions>;
+pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
 
-pub(crate) type FullClient = sc_service::TFullClient<
-	Block,
-	RuntimeApi,
-	RuntimeExecutor,
->;
+pub(crate) type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
@@ -163,7 +156,7 @@ pub fn new_full<
 		Block,
 		<Block as sp_runtime::traits::Block>::Hash,
 		N,
-	>::new(&config.network, None);
+	>::new(&config.network);
 	let metrics = N::register_notification_metrics(config.prometheus_registry());
 
 	let peer_store_handle = net_config.peer_store_handle();
@@ -200,12 +193,12 @@ pub fn new_full<
 		})?;
 
 	if config.offchain_worker.enabled {
-
 		sp_keystore::Keystore::sr25519_generate_new(
 			&*keystore_container.keystore(),
 			node_template_runtime::pallet_drand::KEY_TYPE,
 			Some("//Alice"),
-		).expect("Creating key with account Alice should succeed.");
+		)
+		.expect("Creating key with account Alice should succeed.");
 
 		task_manager.spawn_handle().spawn(
 			"offchain-workers-runner",
@@ -239,8 +232,7 @@ pub fn new_full<
 		let pool = transaction_pool.clone();
 
 		Box::new(move |deny_unsafe, _| {
-			let deps =
-				crate::rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe };
+			let deps = crate::rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe };
 			crate::rpc::create_full(deps).map_err(Into::into)
 		})
 	};

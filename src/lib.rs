@@ -39,7 +39,6 @@ use sp_runtime::{
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	KeyTypeId,
 };
-
 use w3f_bls::{EngineBLS, TinyBLS381};
 
 #[cfg(test)]
@@ -390,6 +389,7 @@ pub mod pallet {
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
 				Call::set_beacon_config { config_payload: ref payload, ref signature } => {
+					let signature = signature.as_ref().ok_or(InvalidTransaction::BadSigner)?;
 					// TODO validate it is a trusted source as any well-formatted config would pass
 					// https://github.com/ideal-lab5/pallet-drand/issues/3
 					Self::validate_signature_and_parameters(
@@ -399,6 +399,7 @@ pub mod pallet {
 					)
 				},
 				Call::write_pulse { pulse_payload: ref payload, ref signature } => {
+					let signature = signature.as_ref().ok_or(InvalidTransaction::BadSigner)?;
 					Self::validate_signature_and_parameters(
 						payload,
 						signature,
@@ -418,7 +419,7 @@ pub mod pallet {
 		pub fn write_pulse(
 			origin: OriginFor<T>,
 			pulse_payload: PulsePayload<T::Public, BlockNumberFor<T>>,
-			_signature: T::Signature,
+			_signature: Option<T::Signature>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
@@ -479,7 +480,7 @@ pub mod pallet {
 		pub fn set_beacon_config(
 			origin: OriginFor<T>,
 			config_payload: BeaconConfigurationPayload<T::Public, BlockNumberFor<T>>,
-			_signature: T::Signature,
+			_signature: Option<T::Signature>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			BeaconConfig::<T>::put(config_payload.config);
@@ -526,7 +527,10 @@ impl<T: Config> Pallet<T> {
 				config: config.clone(),
 				public: account.public.clone(),
 			},
-			|config_payload, signature| Call::set_beacon_config { config_payload, signature },
+			|config_payload, signature| Call::set_beacon_config {
+				config_payload,
+				signature: Some(signature),
+			},
 		);
 
 		if results.is_empty() {
@@ -573,7 +577,10 @@ impl<T: Config> Pallet<T> {
 				pulse: pulse.clone(),
 				public: account.public.clone(),
 			},
-			|pulse_payload, signature| Call::write_pulse { pulse_payload, signature },
+			|pulse_payload, signature| Call::write_pulse {
+				pulse_payload,
+				signature: Some(signature),
+			},
 		);
 
 		for (acc, res) in &results {

@@ -10,7 +10,9 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, Verify},
+	traits::{
+		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, Verify,
+	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, DispatchError, MultiSignature, SaturatedConversion,
 };
@@ -210,7 +212,10 @@ impl frame_system::Config for Runtime {
 	type AccountData = pallet_balances::AccountData<Balance>;
 	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
 	type SS58Prefix = SS58Prefix;
+	/// The maximum number of consumers allowed on a single account.
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+	type Lookup = AccountIdLookup<Self::AccountId, ()>;
 }
 
 impl pallet_aura::Config for Runtime {
@@ -259,7 +264,7 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
 	type RuntimeHoldReason = RuntimeHoldReason;
-	type RuntimeFreezeReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 }
 
 parameter_types! {
@@ -281,16 +286,12 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-	pub const UnsignedPriority: u64 = 1 << 20;
-}
-
 impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
 	type Verifier = pallet_drand::QuicknetVerifier;
-	type UnsignedPriority = UnsignedPriority;
+	type UnsignedPriority = ConstU64<{ 1 << 20 }>;
 }
 
 parameter_types! {
@@ -359,7 +360,6 @@ impl pallet_contracts::Config for Runtime {
 	type Environment = ();
 	type ApiVersion = ();
 	type Xcm = ();
-	type MaxTransientStorageSize = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

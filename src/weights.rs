@@ -41,16 +41,18 @@ pub trait WeightInfo {
 /// Weights for pallet_template using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-/// Storage: `Drand::BeaconConfig` (r:0 w:1)
+	/// Storage: `Drand::BeaconConfig` (r:0 w:1)
 	/// Proof: `Drand::BeaconConfig` (`max_values`: Some(1), `max_size`: Some(238), added: 733, mode: `MaxEncodedLen`)
+	/// Storage: `Drand::NextUnsignedAt` (r:0 w:1)
+	/// Proof: `Drand::NextUnsignedAt` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	fn set_beacon_config() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 9_700_000 picoseconds.
-		Weight::from_parts(10_100_000, 0)
+		// Minimum execution time: 8_000_000 picoseconds.
+		Weight::from_parts(8_000_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			.saturating_add(T::DbWeight::get().writes(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	/// Storage: `Drand::BeaconConfig` (r:1 w:0)
 	/// Proof: `Drand::BeaconConfig` (`max_values`: Some(1), `max_size`: Some(238), added: 733, mode: `MaxEncodedLen`)
@@ -58,8 +60,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `6`
 		//  Estimated: `1723`
-		// Minimum execution time: 5_600_000 picoseconds.
-		Weight::from_parts(5_800_000, 0)
+		// Minimum execution time: 5_000_000 picoseconds.
+		Weight::from_parts(6_000_000, 0)
 			.saturating_add(Weight::from_parts(0, 1723))
 			.saturating_add(T::DbWeight::get().reads(1))
 	}
