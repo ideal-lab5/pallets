@@ -6,6 +6,8 @@ This guide details how to integrate the drand bridge pallet into the runtime.
 
 ### Add Arkworks Host Functions
 
+**NOTE: this step is only for solochains (see [Assumptions and Limitations](./integration.md#assumption-and-limitations))**
+
 First you will need to add support for the arkworks host functions. Arkworks is far more performant when run natively than in wasm, so we achieve a massive boost in speed when using host functions.
 
 Near the top of `node/src/service.rs`, add change the `FullClient` to use the code below:
@@ -86,7 +88,7 @@ impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
-	type Verifier = pallet_drand::QuicknetVerifier;
+	type Verifier = pallet_drand::QuicknetVerifier; // Only for solochains, otherwise use `pallet_drand::SkipVerifier`
 	type UnsignedPriority = ConstU64<{ 1 << 20 }>;
 }
 
