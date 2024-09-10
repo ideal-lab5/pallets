@@ -499,7 +499,7 @@ impl<T: Config> Pallet<T> {
 	/// query drand's /info endpoint for the quicknet chain
 	/// then send a signed transaction to encode it on-chain
 	fn fetch_drand_config_and_send(block_number: BlockNumberFor<T>) -> Result<(), &'static str> {
-		// Make sure we don't fetch the price if unsigned transaction is going to be rejected
+		// Make sure we don't fetch the config if the transaction is going to be rejected
 		// anyway.
 		let next_unsigned_at = NextUnsignedAt::<T>::get();
 		if next_unsigned_at > block_number {
@@ -552,7 +552,7 @@ impl<T: Config> Pallet<T> {
 	fn fetch_drand_pulse_and_send_unsigned(
 		block_number: BlockNumberFor<T>,
 	) -> Result<(), &'static str> {
-		// Make sure we don't fetch the price if unsigned transaction is going to be rejected
+		// Make sure we don't fetch the price if the transaction is going to be rejected
 		// anyway.
 		let next_unsigned_at = NextUnsignedAt::<T>::get();
 		if next_unsigned_at > block_number {
@@ -767,6 +767,14 @@ impl Verifier for QuicknetVerifier {
 		let p2 = bls12_381::pairing_opt(message_on_curve.0, pk.0);
 
 		Ok(p1 == p2)
+	}
+}
+
+pub struct UnsafeSkipVerifier;
+
+impl Verifier for UnsafeSkipVerifier {
+	fn verify(_beacon_config: BeaconConfiguration, _pulse: Pulse) -> Result<bool, String> {
+		Ok(true)
 	}
 }
 
