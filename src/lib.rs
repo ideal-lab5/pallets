@@ -770,9 +770,9 @@ impl Verifier for QuicknetVerifier {
 	}
 }
 
-pub struct SkipVerifier;
+pub struct UnsafeSkipVerifier;
 
-impl Verifier for SkipVerifier {
+impl Verifier for UnsafeSkipVerifier {
 	fn verify(_beacon_config: BeaconConfiguration, _pulse: Pulse) -> Result<bool, String> {
 		Ok(true)
 	}

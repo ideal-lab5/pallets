@@ -88,7 +88,7 @@ impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
-	type Verifier = pallet_drand::QuicknetVerifier; // Only for solochains, otherwise use `pallet_drand::SkipVerifier`
+	type Verifier = pallet_drand::QuicknetVerifier; // Only for solochains, otherwise use `pallet_drand::UnsafeSkipVerifier`
 	type UnsignedPriority = ConstU64<{ 1 << 20 }>;
 }
 
