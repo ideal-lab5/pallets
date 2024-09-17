@@ -24,11 +24,12 @@ use alloc::{format, string::String, vec, vec::Vec};
 use ark_ec::{hashing::HashToCurve, AffineRepr};
 use ark_serialize::CanonicalSerialize;
 use codec::{Decode, Encode};
-use frame_support::pallet_prelude::*;
-use frame_support::traits::Randomness;
-use frame_system::offchain::SignedPayload;
-use frame_system::offchain::SigningTypes;
+use frame_support::{
+	pallet_prelude::*,
+	traits::{Randomness, ValidatorSetWithIdentification},
+};
 use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendUnsignedTransaction, Signer};
+use frame_system::offchain::{SignedPayload, SigningTypes};
 use frame_system::pallet_prelude::BlockNumberFor;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -302,6 +303,11 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 		/// something that knows how to verify beacon pulses
 		type Verifier: Verifier;
+		/// A type for retrieving the validators supposed to be online in a session.
+		type ValidatorSet: ValidatorSetWithIdentification<Self::AccountId>;
+		/// The origin permissioned to update beacon configurations
+		// #[pallet::constant]
+		// type TrustedOrigins: Get<Vec<Self::AuthorityId>>;
 		/// A configuration for base priority of unsigned transactions.
 		///
 		/// This is exposed so that it can be tuned for particular runtime, when
@@ -667,6 +673,27 @@ impl<T: Config> Pallet<T> {
 		}
 		Self::validate_transaction_parameters(&block_number)
 	}
+
+	// fn verify_signature(
+	// 	payload: &impl SignedPayload<T>,
+	// 	signature: &T::Signature,
+	// ) -> DispatchResult {
+	// 	// Access the keystore
+	// 	let keystore = sp_keystore::Keystore::new().ok_or("Keystore not available")?;
+
+	// 	// Retrieve the public key from the keystore
+	// 	let public_keys = keystore.sr25519_public_keys(KEY_TYPE);
+	// 	ensure!(!public_keys.is_empty(), "No public keys found in keystore");
+
+	// 	// Verify the signature against each public key
+	// 	let is_valid = public_keys
+	// 		.iter()
+	// 		.any(|public_key| T::Signature::verify(&signature, &data, public_key));
+
+	// 	ensure!(is_valid, "Invalid signature");
+
+	// 	Ok(())
+	// }
 
 	fn validate_transaction_parameters(block_number: &BlockNumberFor<T>) -> TransactionValidity {
 		// Now let's check if the transaction has any chance to succeed.

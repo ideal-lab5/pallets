@@ -45,7 +45,12 @@ w3f-bls = { git = "https://github.com/w3f/bls", default-features = false }
 sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false }
 
 [dev-dependencies]
+sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false, features = [
+	"serde",
+] }
 sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false }
+pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false }
+pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false }
 
 [features]
 default = ["std"]
@@ -74,6 +79,8 @@ std = [
 	"ark-crypto-primitives/std",
 	"ark-scale/std",
 	"w3f-bls/std",
+	"pallet-aura/std",
+	# "sp-consensus-aura/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

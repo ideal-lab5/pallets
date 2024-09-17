@@ -1,9 +1,11 @@
 use crate as pallet_drand_bridge;
 use crate::*;
+use frame_support::BoundedSlice;
 use frame_support::{
 	derive_impl, parameter_types,
-	traits::{ConstU16, ConstU64},
+	traits::{ConstBool, ConstU16, ConstU64},
 };
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519::Signature, H256};
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
 use sp_runtime::{
@@ -20,6 +22,7 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system,
 		Drand: pallet_drand_bridge,
+		Aura: pallet_aura,
 	}
 );
 
@@ -48,6 +51,22 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ConstU16<42>;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+}
+
+impl pallet_aura::Config for Test {
+	type AuthorityId = AuraId;
+	type MaxAuthorities = ConstU32<32>;
+	type DisabledValidators = ();
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
+	type SlotDuration = pallet_aura::MinimumPeriodTimesTwo<Self>;
+}
+
+impl pallet_timestamp::Config for Test {
+	/// A timestamp: milliseconds since the unix epoch.
+	type Moment = u64;
+	type OnTimestampSet = Aura;
+	type MinimumPeriod = ConstU64<3000>;
+	type WeightInfo = ();
 }
 
 type Extrinsic = TestXt<RuntimeCall, ()>;
@@ -89,21 +108,21 @@ impl pallet_drand_bridge::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand_bridge::weights::SubstrateWeight<Test>;
 	type Verifier = QuicknetVerifier;
+	// type TrustedOrigins = Get<vec![sp_keyring::Sr25519Keyring::Alice]>;
 	type UnsignedPriority = UnsignedPriority;
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-
 	let mut ext = sp_io::TestExternalities::new(t);
 	let keystore = MemoryKeystore::new();
 	ext.register_extension(KeystoreExt::new(keystore.clone()));
-	sp_keystore::Keystore::sr25519_generate_new(
-		&keystore,
-		pallet_drand_bridge::KEY_TYPE,
-		Some("//Alice"),
-	)
-	.expect("Creating key with account Alice should succeed.");
+	ext.execute_with(|| {
+		let alice = sp_keyring::Sr25519Keyring::Alice.public();
+		let authorities = [alice.into()];
+		pallet_aura::Pallet::<Test>::initialize_authorities(&authorities);
+		pallet_aura::Pallet::<Test>::
+	});
 	ext
 }

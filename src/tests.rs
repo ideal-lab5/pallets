@@ -275,12 +275,32 @@ fn test_not_validate_unsigned_write_pulse_with_no_payload_signature() {
 }
 
 #[test]
-#[ignore]
-fn test_validate_unsigned_write_pulse_by_non_authority() {
+fn test_not_validate_unsigned_write_pulse_by_non_authority() {
 	// TODO: https://github.com/ideal-lab5/pallet-drand/issues/3
-	todo!(
-		"the transaction should be validated even if the signer of the payload is not an authority"
-	);
+	// "the transaction should not be validated if the signer of the payload is not an authority"
+	new_test_ext().execute_with(|| {
+		let block_number = 1;
+		// Ferdie is not an authority
+		let ferdie = sp_keyring::Sr25519Keyring::Ferdie;
+		System::set_block_number(block_number);
+		let payload =
+			PulsePayload { block_number, pulse: Default::default(), public: ferdie.public() };
+
+		let signature = ferdie.sign(&payload.encode());
+		let call = Call::write_pulse { pulse_payload: payload.clone(), signature: Some(signature) };
+
+		let source = TransactionSource::External;
+		let validity = Drand::validate_unsigned(source, &call);
+
+		// assert_noop!(validity, InvalidTransaction::BadSigner);
+		// Get the list of Aura authorities
+		let authorities: Vec<<Test as pallet_aura::Config>::AuthorityId> = pallet_aura::Authorities::<Test>::get()
+			.into_iter()
+			.map(|authority| authority.into())
+			.collect();
+		log::debug!("Aura authorities: {:?}", authorities);
+		assert_eq!(authorities.len(), 1);
+	});
 }
 
 #[test]
