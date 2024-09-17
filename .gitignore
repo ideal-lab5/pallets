@@ -38,4 +38,4 @@ release.json
 rls*.log
 runtime/wasm/target/
 substrate.code-workspace
-target/
+target*/
