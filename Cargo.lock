@@ -1920,6 +1920,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-murmur"
+version = "0.0.1"
+
+[[package]]
 name = "parity-bip39"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
