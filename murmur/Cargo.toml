@@ -1,0 +1,10 @@
+[package]
+name = "pallet-murmur"
+description = "FRAME pallet for murmur wallet."
+authors = ["Ideal Labs <hello@idealabs.network>"]
+version = "0.0.1"
+license = "MIT-0"
+edition = "2021"
+homepage = "https://www.idealabs.network"
+repository = "https://www.github.com/ideal-lab5/pallets"
+publish = false
