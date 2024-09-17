@@ -1,10 +1,83 @@
 [package]
 name = "pallet-murmur"
-description = "FRAME pallet for murmur wallet."
-authors = ["Ideal Labs <hello@idealabs.network>"]
-version = "0.0.1"
-license = "MIT-0"
+version = "4.0.0-dev"
+description = "FRAME pallet to store and manage IBE public params"
+authors = ["Ideal Labs <https://github.com/ideal-lab5>"]
+homepage = "https://idealabs.network"
 edition = "2021"
-homepage = "https://www.idealabs.network"
-repository = "https://www.github.com/ideal-lab5/pallets"
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 publish = false
+repository.workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+array-bytes = "4.1"
+log = { version = "0.4.17", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = [
+	"derive",
+] }
+serde = { version = "1.0.188", features = ["alloc", "derive"], default-features = false }
+ark-serialize = { version = "0.4.0", features = [ "derive" ], default-features = false }
+ark-bls12-381 = { version = "0.4.0", features = ["curve"], default-features = false }
+primitive-types = { version = "0.12.1", default-features = false }
+scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
+frame-benchmarking = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false , optional = true }
+frame-support = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+frame-system = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+
+sp-std = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-runtime = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-core = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+# etf-crypto-primitives = { default-features =  false, git = "https://github.com/ideal-lab5/etf-sdk.git", branch = "tony/dev"}
+ckb-merkle-mountain-range = { version = "0.5.2", default-features = false }
+sha3 = { version = "0.10.8", default-features = false }
+murmur-core = { package="murmur-core", git = "https://github.com/ideal-lab5/murmur.git", branch = "dev", default-features = false }
+# totp-rs = { version = "5.5.1", default-features = false, optional = true }
+
+# local dependencies
+pallet-proxy = { default-features = false, path = "../proxy" }
+pallet-randomness-beacon = { default-features = false, path = "../randomness-beacon"}
+
+[dev-dependencies]
+frame-support-test = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+pallet-balances = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+pallet-timestamp = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+rand_chacha ="0.3.1"
+ark-std = { version = "0.4.0", default-features = false }
+hex = "0.4.3"
+sp-io = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false  }
+
+[features]
+default = ["std"]
+std = [
+	# "totp-rs",
+	"serde/std",
+	"codec/std",
+	"frame-benchmarking?/std",
+	"frame-support/std",
+	"frame-system/std",
+	"scale-info/std",
+	"primitive-types/std",
+	"sp-std/std",
+	"sp-runtime/std",
+	"sp-io/std",
+	"sp-core/std",
+	"ark-serialize/std",
+	"ark-bls12-381/std",
+	"pallet-balances/std",
+	"pallet-proxy/std",
+	"pallet-randomness-beacon/std",
+	"ckb-merkle-mountain-range/std",
+	"sha3/std",
+	"murmur-core/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"pallet-balances/try-runtime"
+]

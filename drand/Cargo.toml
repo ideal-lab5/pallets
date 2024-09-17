@@ -6,7 +6,7 @@ version = "0.0.1"
 license = "MIT-0"
 edition = "2021"
 homepage = "https://www.idealabs.network"
-repository = "https://www.github.com/ideal-lab5/pallets"
+repository.workspace = true
 publish = false
 
 [package.metadata.docs.rs]
