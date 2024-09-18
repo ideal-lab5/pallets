@@ -1,0 +1,69 @@
+[package]
+name = "pallet-beefy-mmr-etf"
+version = "28.0.0"
+authors.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+description = "BEEFY + MMR runtime utilities"
+repository.workspace = true
+homepage = "https://substrate.io"
+
+[lints]
+workspace = true
+
+[dependencies]
+array-bytes = { version = "6.1", optional = true }
+codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = ["derive"] }
+log = { workspace = true }
+scale-info = { version = "2.10.0", default-features = false, features = ["derive"] }
+serde = { optional = true, workspace = true, default-features = true }
+binary-merkle-tree = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+frame-support = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+frame-system = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+pallet-beefy = { package = "pallet-beefy-etf", path = "../beefy-etf", default-features = false }
+pallet-mmr = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+pallet-session = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-consensus-beefy-etf = { git = "https://github.com/ideal-lab5/etf.git", default-features = false, features = ["bls-experimental"]}
+sp-core = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-io = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-runtime = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-std = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-api = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-state-machine = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+
+[dev-dependencies]
+array-bytes = "6.1"
+sp-staking = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+pallet-etf = { path = "../etf" }
+
+[features]
+default = ["std"]
+std = [
+	"array-bytes",
+	"binary-merkle-tree/std",
+	"codec/std",
+	"frame-support/std",
+	"frame-system/std",
+	"log/std",
+	"pallet-beefy/std",
+	"pallet-mmr/std",
+	"pallet-session/std",
+	"scale-info/std",
+	"serde",
+	"sp-api/std",
+	"sp-consensus-beefy-etf/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"sp-staking/std",
+	"sp-state-machine/std",
+	"sp-std/std",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-beefy/try-runtime",
+	"pallet-mmr/try-runtime",
+	"pallet-session/try-runtime",
+	"sp-runtime/try-runtime",
+]
