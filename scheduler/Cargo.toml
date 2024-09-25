@@ -36,9 +36,7 @@ ark-ec = { version = "0.4.0", default-features = false }
 ark-serialize = { version = "0.4.0", default-features = false }
 ark-bls12-381 = { version = "0.4.0", features = ["curve"], default-features = false }
 ark-crypto-primitives = { version = "0.4.0", default-features = false, features = ["signature"] }
-# sp-consensus-etf-aura = { path = "../../primitives/consensus/aura" }
 pallet-etf = { default-features = false, path = "../etf" }
-# pallet-etf-aura = { version = "4.0.0-dev", default-features = false, path = "../aura" }
 pallet-insecure-randomness-collective-flip = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false  }
 rand_chacha = { version = "0.3.1", default-features = false }
 
@@ -50,7 +48,6 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
-	# "pallet-etf/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]
 std = [
@@ -69,7 +66,6 @@ std = [
 	"pallet-etf/std",
 	"pallet-timestamp/std",
 	"pallet-randomness-beacon/std"
-	# "sha3/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

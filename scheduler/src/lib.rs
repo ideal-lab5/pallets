@@ -739,10 +739,7 @@ impl<T: Config> Pallet<T> {
 		Self::place_task(new_time, task).map_err(|x| x.0)
 	}
 
-	/*
-		Schedule sealed tasks
-	*/
-
+	/// schedule sealed tasks
 	fn do_schedule_sealed(
 		when: DispatchTime<BlockNumberFor<T>>,
 		priority: schedule::Priority,
@@ -751,8 +748,10 @@ impl<T: Config> Pallet<T> {
 	) -> Result<TaskAddress<BlockNumberFor<T>>, DispatchError> {
 		let when = Self::resolve_time(when)?;
 
+		let id = blake2_256(&ciphertext[..]);
+
 		let task = Scheduled {
-			maybe_id: None,
+			maybe_id: Some(id),
 			priority,
 			maybe_call: None,
 			maybe_ciphertext: Some(ciphertext),
@@ -839,20 +838,15 @@ impl<T: Config> Pallet<T> {
 				Some(t) => t,
 			};
 
-			log::info!("************************************************* servicing task with ciphertext = none ? {:?}", task.maybe_ciphertext.is_none());
-			log::info!("************************************************* servicing task when = {:?}, then = {:?}", when, then);
 			if let Some(ref ciphertext) = task.maybe_ciphertext {
 				// the task should be delayed until `then` == `when`
 				if then == when  {
-					log::info!("************************************************* then {:?}, when {:?}", then, when);
 					task.maybe_call = T::TlockProvider::decrypt_at(&ciphertext.clone(), then)
 						.map_err(|_| pallet_randomness_beacon::TimelockError::DecryptionFailed)
 						.and_then(|bare| {
 							if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut bare.message.as_slice()) {
-								log::info!("************************************************* VALID CALL DATA RECOVERED");
 								Ok(call)
 							} else {
-								log::info!("************************************************* INVALID CALL DATA RECOVERED");
 								Err(pallet_randomness_beacon::TimelockError::DecryptionFailed)
 							}
 						})
@@ -860,7 +854,6 @@ impl<T: Config> Pallet<T> {
 						.map_err(|_| pallet_randomness_beacon::TimelockError::DecryptionFailed))
 						.ok();
 				} else {
-					log::info!("************************************************* putting it back into the agenda");
 					// insert the task back into the agenda and continue
 					agenda[agenda_index as usize] = Some(task);
 					postponed += 1;

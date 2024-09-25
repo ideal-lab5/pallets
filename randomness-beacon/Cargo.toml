@@ -1,11 +1,11 @@
 [package]
 name = "pallet-randomness-beacon"
-version = "28.0.0"
+version = "1.0.0"
 authors.workspace = true
 edition.workspace = true
-license = "Apache-2.0"
+license = "MIT"
 repository.workspace = true
-description = "BEEFY FRAME pallet"
+description = "Verifiable Randomness Beacon FRAME pallet"
 homepage = "https://substrate.io"
 
 [lints]
@@ -15,16 +15,15 @@ workspace = true
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = ["derive"] }
 log = { workspace = true }
 scale-info = { version = "2.10.0", default-features = false, features = ["derive", "serde"] }
-# serde = { optional = true, workspace = true, default-features = true }
 serde = { version = "1.0.197", default-features = false }
 
 frame-support = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 frame-system = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 pallet-session = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 pallet-authorship = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
-sp-consensus-beefy-etf = { git = "https://github.com/ideal-lab5/etf.git", default-features = false, features = ["serde", "bls-experimental"] }
-pallet-etf = { path = "../etf", default-features = false}
-pallet-beefy = { package = "pallet-beefy-etf", path = "../beefy-etf", default-features = false}
+sp-consensus-beefy-etf = { git = "https://github.com/ideal-lab5/etf.git", branch = "murmur", default-features = false, features = ["serde", "bls-experimental"] }
+pallet-etf = { path = "../etf", default-features = false }
+pallet-beefy = { package = "pallet-beefy-etf", path = "../beefy-etf", default-features = false }
 sp-runtime = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false, features = ["serde"] }
 sp-session = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 sp-staking = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false, features = ["serde"] }
@@ -35,7 +34,6 @@ ark-serialize = { version = "0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false }
 ark-ff = { version = "0.4.0", default-features = false }
 ark-bls12-377 = { version = "0.4.0", features = ["curve"], default-features = false }
-# getrandom = { version = "0.2", features = ["js"] }
 array-bytes = "6.1"
 sha3 = { version = "0.10.0", default-features = false }
 sha2 = { version = "0.10.8", default-features =  false }

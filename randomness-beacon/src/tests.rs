@@ -129,31 +129,13 @@ fn test_can_write_single_pulse() {
         let pk3_pub = <TinyBLS377 as EngineBLS>::PublicKeyGroup::deserialize_compressed(pk3_bytes_pub).unwrap();
         let pk3_sig = <TinyBLS377 as EngineBLS>::SignatureGroup::deserialize_compressed(pk3_bytes_sig).unwrap();
 
-        // pub_keys_in_sig_grp.push(PublicKeyInSignatureGroup::<TinyBLS377>(pk1_sig));
-        // pub_keys_in_sig_grp.push(PublicKeyInSignatureGroup::<TinyBLS377>(pk2_sig));
-        // pub_keys_in_sig_grp.push(PublicKeyInSignatureGroup::<TinyBLS377>(pk3_sig));
-
         let message = Message::new(b"", &commitment.encode());
         let mut prover_aggregator =
             SignatureAggregatorAssumingPoP::<TinyBLS377>::new(message.clone());
-        // let mut aggregated_public_key =
-        //     PublicKey::<TinyBLS377>(<TinyBLS377 as EngineBLS>::PublicKeyGroup::zero());
-
-        // sign and aggegate
-        // let t = sig_1.1;
-        // prover_aggregator.add_signature(&Signature(sig_1.0));
-        // prover_aggregator.add_signature(&Signature(sig_2.0));
-        // prover_aggregator.add_signature(&Signature(sig_3.0));
-        // let t = sig_1 + sig_2;
-
-        // aggregated_public_key.0 += pk1_pub;
-        // aggregated_public_key.0 += pk2_pub;
-        // aggregated_public_key.0 += pk3_pub;
 
         let mut serialized_sig = Vec::new();
         let sig = &(&prover_aggregator).signature();
         sig.serialize_compressed(&mut serialized_sig).unwrap();
-        // panic!("{:?}", serialized_sig.len());
 
         assert_ok!(Beacon::write_pulse(
             RuntimeOrigin::none(), 
