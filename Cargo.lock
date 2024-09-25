@@ -3977,14 +3977,10 @@ dependencies = [
 [[package]]
 name = "sp-consensus-beefy-etf"
 version = "13.0.0"
-source = "git+https://github.com/ideal-lab5/etf.git?branch=murmur#47eff7c36775c43674cbbadb25a8daef7c182d49"
+source = "git+https://github.com/ideal-lab5/etf.git?branch=tony/dev#eede7b8f5fc6c7f853e1e087ef92b272d9098574"
 dependencies = [
- "ark-serialize",
- "ark-std",
- "etf-crypto-primitives 0.2.4 (git+https://github.com/ideal-lab5/etf-sdk/?branch=tony/dev)",
  "lazy_static",
  "parity-scale-codec",
- "rand",
  "scale-info",
  "serde",
  "sp-api 26.0.0",
@@ -3996,7 +3992,6 @@ dependencies = [
  "sp-mmr-primitives",
  "sp-runtime 31.0.1",
  "strum 0.24.1",
- "w3f-bls 0.1.4",
 ]
 
 [[package]]
