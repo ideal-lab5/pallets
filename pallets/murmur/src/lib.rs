@@ -184,6 +184,7 @@ pub mod pallet {
 			hash: Vec<u8>,
 			ciphertext: Vec<u8>,
 			proof: Vec<Vec<u8>>,
+			size: u64,
 			call: sp_std::boxed::Box<<T as pallet_proxy::Config>::RuntimeCall>,
 		) -> DispatchResult {
 			// let who = ensure_signed(origin)?;
@@ -198,14 +199,26 @@ pub mod pallet {
 
 			let leaves: Vec<Leaf> = proof.clone().into_iter()
 				.map(|p| Leaf(p)).collect::<Vec<_>>();
-			let size = proxy_details.size;
-			let merkle_proof = MerkleProof::<Leaf, MergeLeaves>::new(size, leaves);
+			let merkle_proof = MerkleProof::<Leaf, MergeLeaves>::new(size, leaves.clone());
 			let root = Leaf(proxy_details.root);
 
+			log::info!("****************************************************************************************** leaves {:?}", leaves.clone());
+			log::info!("****************************************************************************************** proof {:?}", merkle_proof);
+			log::info!("****************************************************************************************** root {:?}", root.clone());
+			log::info!("****************************************************************************************** size {:?}", size.clone());
+			log::info!("****************************************************************************************** position {:?}", position.clone());
+
+			let test = merkle_proof.verify(root.clone(), vec![(position.clone(), Leaf(ciphertext.clone()))]);
+			log::info!("****************************************************************************************** Precheck merkle proof validity? {:?}, had mmr size {:?}", test, proxy_details.size);
+
 			let validity = murmur::verify(
-				root, merkle_proof, hash, 
-				ciphertext, otp, 
-				call.encode().to_vec(), position
+				root, 
+				merkle_proof, 
+				hash, 
+				ciphertext, 
+				otp, 
+				call.encode().to_vec(), 
+				position
 			);
 
 			frame_support::ensure!(validity, Error::<T>::InvalidMerkleProof);

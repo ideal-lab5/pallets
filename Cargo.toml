@@ -1,13 +1,15 @@
 [workspace]
 members = [
-    "beefy-etf",
-    "beefy-mmr-etf",
-    "drand",
-    "etf",
-    "murmur",
-    "proxy",
-    "randomness-beacon",
-    "scheduler",
+    "client/consensus/beefy-etf",
+    "primitives/consensus/beefy-etf",
+    "pallets/beefy-etf",
+    "pallets/beefy-mmr-etf",
+    "pallets/drand",
+    "pallets/etf",
+    "pallets/murmur",
+    "pallets/proxy",
+    "pallets/randomness-beacon",
+    "pallets/scheduler",
 ]
 resolver = "2"
 
@@ -46,6 +48,17 @@ stable_sort_primitive = { level = "allow", priority = 2 }            # prefer st
 extra-unused-type-parameters = { level = "allow", priority = 2 }     # stylistic
 default_constructed_unit_structs = { level = "allow", priority = 2 } # stylistic
 
+
 [workspace.dependencies]
+polkavm = "0.9.3"
+polkavm-linker = "0.9.2"
+polkavm-derive = "0.9.1"
 log = { version = "0.4.21", default-features = false }
+quote = { version = "1.0.33" }
 serde = { version = "1.0.197", default-features = false }
+serde-big-array = { version = "0.3.2" }
+serde_derive = { version = "1.0.117" }
+serde_json = { version = "1.0.114", default-features = false }
+serde_yaml = { version = "0.9" }
+syn = { versicargon = "2.0.53" }
+thiserror = { version = "1.0.48" }

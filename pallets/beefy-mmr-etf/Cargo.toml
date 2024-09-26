@@ -6,7 +6,7 @@ edition.workspace = true
 license = "Apache-2.0"
 description = "BEEFY + MMR runtime utilities"
 repository.workspace = true
-homepage = "https://substrate.io"
+repository.homepage = true
 
 [lints]
 workspace = true
@@ -23,7 +23,8 @@ frame-system = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch 
 pallet-beefy = { package = "pallet-beefy-etf", path = "../beefy-etf", default-features = false }
 pallet-mmr = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 pallet-session = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
-sp-consensus-beefy-etf = { git = "https://github.com/ideal-lab5/etf.git", branch = "tony/dev", default-features = false, features = ["serde", "bls-experimental"] }
+# sp-consensus-beefy-etf = { git = "https://github.com/ideal-lab5/etf.git", branch = "tony/dev", default-features = false, features = ["serde", "bls-experimental"] }
+sp-consensus-beefy-etf = { path = "../../primitives/consensus/beefy-etf", default-features = false, features = ["serde", "bls-experimental"] }
 sp-core = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 sp-io = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 sp-runtime = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
