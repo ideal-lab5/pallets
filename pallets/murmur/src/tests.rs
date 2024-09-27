@@ -85,10 +85,6 @@ fn it_can_create_new_proxy_with_unique_name() {
 		// check storage
 		let registered_proxy = murmur::Registry::<Test>::get(bounded_name.clone());
 		assert!(registered_proxy.is_some());
-		// 	// verify data
-		// 	assert_eq!(registered_proxy.root, root);
-		// 	assert_eq!(registered_proxy.size, size);
-		// 	assert_eq!(registered_proxy.name, unique_name);
 	});
 }
 
