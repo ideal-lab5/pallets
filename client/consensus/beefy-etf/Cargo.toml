@@ -1,0 +1,71 @@
+[package]
+name = "sc-consensus-beefy-etf"
+version = "13.0.0"
+authors.workspace = true
+edition.workspace = true
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+repository.workspace = true
+description = "BEEFY Client gadget for substrate"
+homepage = "https://substrate.io"
+
+[lints]
+workspace = true
+
+[dependencies]
+array-bytes = "6.1"
+async-channel = "1.8.0"
+async-trait = "0.1.74"
+codec = { package = "parity-scale-codec", version = "3.6.1", features = ["derive"] }
+fnv = "1.0.6"
+futures = "0.3"
+log = { workspace = true, default-features = true }
+parking_lot = "0.12.1"
+thiserror = { workspace = true }
+wasm-timer = "0.2.5"
+prometheus = { package = "substrate-prometheus-endpoint", git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-client-api = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-consensus = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-network = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-network-gossip = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-network-sync = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-network-types = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-utils = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-transaction-pool-api = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-api = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-application-crypto = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-arithmetic = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-blockchain = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-consensus = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-consensus-beefy-etf = { path = "../../../primitives/consensus/beefy-etf", features = ["bls-experimental"] }
+sp-core = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-crypto-hashing = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-keystore = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", features = ["bls-experimental"]}
+sp-mmr-primitives = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-runtime = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+tokio = "1.22.0"
+ark-serialize = { version = "0.4.0" }
+ark-bls12-377 = { version = "0.4.0", features = ["curve"], optional = true}
+w3f-bls = { version = "0.1.3", optional = true }
+
+
+[dev-dependencies]
+serde = { workspace = true, default-features = true }
+tempfile = "3.1.0"
+sc-block-builder = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sc-network-test = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-consensus-grandpa = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-keyring = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+sp-tracing = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+substrate-test-runtime-client = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
+
+[features]
+# This feature adds BLS crypto primitives. It should not be used in production since
+# the BLS implementation and interface may still be subject to significant change.
+bls-experimental = [
+	"sp-application-crypto/bls-experimental",
+	"sp-consensus-beefy-etf/bls-experimental",
+	"sp-core/bls-experimental",
+	"ark-bls12-377",
+	"w3f-bls"
+]
+
