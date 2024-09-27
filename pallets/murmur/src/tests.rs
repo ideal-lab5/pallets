@@ -61,7 +61,6 @@ fn it_can_create_new_proxy_with_unique_name() {
 	let block_schedule = vec![1, 2, 3];
 	let ephem_msk = [3; 32];
 
-	// let root = vec![1,2,3];
 	let size = 3;
 
 	new_test_ext(vec![0]).execute_with(|| {
