@@ -23,7 +23,6 @@ frame-system = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch 
 pallet-beefy = { package = "pallet-beefy-etf", path = "../beefy-etf", default-features = false }
 pallet-mmr = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 pallet-session = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
-# sp-consensus-beefy-etf = { git = "https://github.com/ideal-lab5/etf.git", branch = "tony/dev", default-features = false, features = ["serde", "bls-experimental"] }
 sp-consensus-beefy-etf = { path = "../../primitives/consensus/beefy-etf", default-features = false, features = ["serde", "bls-experimental"] }
 sp-core = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 sp-io = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }

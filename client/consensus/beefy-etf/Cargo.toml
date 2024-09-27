@@ -36,12 +36,10 @@ sp-application-crypto = { git = "https://github.com/ideal-lab5/polkadot-sdk.git"
 sp-arithmetic = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
 sp-blockchain = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
 sp-consensus = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
-# sp-consensus-beefy-etf-etf = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
 sp-consensus-beefy-etf = { path = "../../../primitives/consensus/beefy-etf", features = ["bls-experimental"] }
 sp-core = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
 sp-crypto-hashing = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
 sp-keystore = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", features = ["bls-experimental"]}
-# sp-keystore = { package = "sp-keystore-etf",path = "../../../primitives/keystore", features = ["bls-experimental"]}
 sp-mmr-primitives = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
 sp-runtime = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
 tokio = "1.22.0"

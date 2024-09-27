@@ -202,14 +202,8 @@ pub mod pallet {
 			let merkle_proof = MerkleProof::<Leaf, MergeLeaves>::new(size, leaves.clone());
 			let root = Leaf(proxy_details.root);
 
-			log::info!("****************************************************************************************** leaves {:?}", leaves.clone());
-			log::info!("****************************************************************************************** proof {:?}", merkle_proof);
-			log::info!("****************************************************************************************** root {:?}", root.clone());
-			log::info!("****************************************************************************************** size {:?}", size.clone());
-			log::info!("****************************************************************************************** position {:?}", position.clone());
-
 			let test = merkle_proof.verify(root.clone(), vec![(position.clone(), Leaf(ciphertext.clone()))]);
-			log::info!("****************************************************************************************** Precheck merkle proof validity? {:?}, had mmr size {:?}", test, proxy_details.size);
+			log::info!("****************************************************************************************** Precheck merkle proof validity? {:?}, had mmr size {:?}", test, size);
 
 			let validity = murmur::verify(
 				root, 
