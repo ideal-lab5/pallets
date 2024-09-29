@@ -847,7 +847,6 @@ impl<T: Config> Pallet<T> {
 						.map_err(|_| pallet_randomness_beacon::TimelockError::DecryptionFailed)
 						.and_then(|bare| {
 							if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut bare.message.as_slice()) {
-								info!("The call data we decoded is {:?}", call.clone());
 								Ok(call)
 							} else {
 								Err(pallet_randomness_beacon::TimelockError::DecryptionFailed)

@@ -130,7 +130,10 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// check duplicate name
-			ensure!(Registry::<T>::get(name.clone()).is_none(), Error::<T>::DuplicateName);
+			ensure!(
+				Registry::<T>::get(name.clone()).is_none(), 
+				Error::<T>::DuplicateName
+			);
 
 			// create a pure proxy with no delegate
 			let signed_origin: T::RuntimeOrigin =
