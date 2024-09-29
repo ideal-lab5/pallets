@@ -85,6 +85,7 @@ mod tests;
 pub mod weights;
 pub use weights::WeightInfo;
 
+use log::info;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	dispatch::{DispatchResult, GetDispatchInfo, Parameter, RawOrigin},
@@ -786,6 +787,7 @@ impl<T: Config> Pallet<T> {
 		let max_items = T::MaxScheduledPerBlock::get();
 		let mut count_down = max;
 		let service_agenda_base_weight = T::WeightInfo::service_agenda_base(max_items);
+
 		while count_down > 0 && when <= now && weight.can_consume(service_agenda_base_weight) {
 			let then = T::TlockProvider::latest();
 			if !Self::service_agenda(weight, &mut executed, now, when, then, u32::max_value()) {
@@ -845,6 +847,7 @@ impl<T: Config> Pallet<T> {
 						.map_err(|_| pallet_randomness_beacon::TimelockError::DecryptionFailed)
 						.and_then(|bare| {
 							if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut bare.message.as_slice()) {
+								info!("The call data we decoded is {:?}", call.clone());
 								Ok(call)
 							} else {
 								Err(pallet_randomness_beacon::TimelockError::DecryptionFailed)
