@@ -225,7 +225,8 @@ benchmarks! {
 		RawOrigin::Signed(caller.clone()),
 		T::ProxyType::default(),
 		BlockNumberFor::<T>::zero(),
-		0
+		0,
+		false
 	)
 	verify {
 		let pure_account = Pallet::<T>::pure_account(&caller, &T::ProxyType::default(), 0, None);
@@ -247,7 +248,8 @@ benchmarks! {
 			RawOrigin::Signed(whitelisted_caller()).into(),
 			T::ProxyType::default(),
 			BlockNumberFor::<T>::zero(),
-			0
+			0,
+			false
 		)?;
 		let height = system::Pallet::<T>::block_number();
 		let ext_index = system::Pallet::<T>::extrinsic_index().unwrap_or(0);
