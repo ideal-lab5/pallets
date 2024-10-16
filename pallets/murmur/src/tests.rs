@@ -144,6 +144,7 @@ fn it_can_proxy_valid_calls() {
 			commitment,
 			ciphertext,
 			proof_items,
+			size,
 			Box::new(call),
 		));
 
