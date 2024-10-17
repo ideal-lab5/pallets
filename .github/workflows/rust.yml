@@ -18,4 +18,4 @@ jobs:
       - name: Install Rust
         run: rustup update stable
       - name: Check formatting
-        run: cargo +nightly fmt -- --check
+        run: cargo fmt -- --check
