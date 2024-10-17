@@ -123,7 +123,6 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Create a time-based proxy account
 		///
-		/// * `origin`: The account creating the proxy
 		/// * `root`: The MMR root
 		/// * `size`: The size (number of leaves) of the MMR
 		/// * `name`: The name to assign to the murmur proxy
@@ -166,7 +165,6 @@ pub mod pallet {
 		/// if valid, it decrypts the ciphertext and uses it to verify the hash
 		/// if valid, it proxies the call
 		///
-		/// * `_origin`: The account calling the proxy
 		/// * `name`: The uid of the murmur proxy
 		/// * `position`: The position in the MMR of the encrypted OTP code
 		/// * `hash`: A hash to commit to the OTP code and call data

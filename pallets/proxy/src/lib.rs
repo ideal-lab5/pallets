@@ -215,9 +215,9 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_.
 		///
 		/// Parameters:
-		/// - `proxy`: The account that the `caller` would like to make a proxy.
+		/// - `delegate`: The account that the `caller` would like to make a proxy.
 		/// - `proxy_type`: The permissions allowed for this proxy account.
-		/// - `delay`: The announcement period required of the initial proxy. Will generally be
+		/// - `delay`: The announcement period required of the initial proxy.
 		/// zero.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::add_proxy(T::MaxProxies::get()))]
@@ -237,8 +237,9 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_.
 		///
 		/// Parameters:
-		/// - `proxy`: The account that the `caller` would like to remove as a proxy.
+		/// - `delegate`: The account that the `caller` would like to remove as a proxy.
 		/// - `proxy_type`: The permissions currently enabled for the removed proxy account.
+		/// - `delay`: The announcement period required of the initial proxy.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::remove_proxy(T::MaxProxies::get()))]
 		pub fn remove_proxy(
@@ -274,11 +275,12 @@ pub mod pallet {
 		/// - `proxy_type`: The type of the proxy that the sender will be registered as over the
 		/// new account. This will almost always be the most permissive `ProxyType` possible to
 		/// allow for maximum flexibility.
+		/// - `delay`: The announcement period required of the initial proxy. Will generally be
+		/// zero.
 		/// - `index`: A disambiguation index, in case this is called multiple times in the same
 		/// transaction (e.g. with `utility::batch`). Unless you're using `batch` you probably just
 		/// want to use `0`.
-		/// - `delay`: The announcement period required of the initial proxy. Will generally be
-		/// zero.
+		/// - `anonymous`: Whether the account should be anonymous.
 		///
 		/// Fails with `Duplicate` if this has already been called in this transaction, from the
 		/// same sender, with the same parameters.
@@ -328,8 +330,8 @@ pub mod pallet {
 		/// `pure` with corresponding parameters.
 		///
 		/// - `spawner`: The account that originally called `pure` to create this account.
-		/// - `index`: The disambiguation index originally passed to `pure`. Probably `0`.
 		/// - `proxy_type`: The proxy type originally passed to `pure`.
+		/// - `index`: The disambiguation index originally passed to `pure`. Probably `0`.
 		/// - `height`: The height of the chain when the call to `pure` was processed.
 		/// - `ext_index`: The extrinsic index in which the call to `pure` was processed.
 		///
@@ -477,6 +479,7 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_.
 		///
 		/// Parameters:
+		/// - `delegate`: The account that the `caller` would like to make a proxy.
 		/// - `real`: The account that the proxy will make a call on behalf of.
 		/// - `force_proxy_type`: Specify the exact proxy type to be used and checked for this call.
 		/// - `call`: The call to be made by the `real` account.
@@ -676,7 +679,7 @@ impl<T: Config> Pallet<T> {
 	/// - `delegator`: The delegator account.
 	/// - `delegatee`: The account that the `delegator` would like to make a proxy.
 	/// - `proxy_type`: The permissions allowed for this proxy account.
-	/// - `delay`: The announcement period required of the initial proxy. Will generally be
+	/// - `delay`: The announcement period required of the initial proxy.
 	/// zero.
 	pub fn remove_proxy_delegate(
 		delegator: &T::AccountId,

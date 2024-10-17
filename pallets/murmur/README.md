@@ -1,7 +1,5 @@
 # Murmur Pallet
 
-# Murmur Pallet
-
 The Murmur Pallet is a FRAME pallet designed to create and execute Murmur wallets. It provides functionalities to create time-based proxy accounts and proxy calls after verifying ciphertexts using Merkle proofs.
 
 ## Overview
@@ -12,13 +10,12 @@ The Murmur Pallet allows users to create proxy accounts with unique names and ex
 
 - **Create Proxy Accounts**: Create time-based proxy accounts with unique names.
 - **Proxy Calls**: Proxy calls after verifying the ciphertext and Merkle proof.
-- **Event Emission**: Emits events for proxy creation and execution.
 
 ## Usage
 
 ### Create a Proxy Account
 
-To create a proxy account, use the `create` function:
+To create a proxy account, use the `create` dispatchable function:
 
 ```rust
 pub fn create(
@@ -31,7 +28,7 @@ pub fn create(
 
 ### Proxy a Call
 
-To proxy a call, use the proxy function:
+To proxy a call, use the `proxy` dispatchable function:
 
 ```rust
 pub fn proxy(
