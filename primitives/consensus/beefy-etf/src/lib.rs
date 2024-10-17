@@ -16,7 +16,6 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs)]
 
 //! Primitives for BEEFY protocol.
 //!

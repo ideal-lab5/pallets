@@ -1,19 +1,18 @@
-// This file is part of Substrate.
-
-// Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * Copyright 2024 by Ideal Labs, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 //! # Proxy Pallet
 //! A pallet allowing accounts to give permission to other accounts to dispatch types of calls from
@@ -302,8 +301,7 @@ pub mod pallet {
 			// if anonymous, then set no delegate
 			let delegate = if anonymous { None } else { Some(who.clone()) };
 
-			let proxy_def =
-				ProxyDefinition { delegate: delegate, proxy_type: proxy_type.clone(), delay };
+			let proxy_def = ProxyDefinition { delegate, proxy_type: proxy_type.clone(), delay };
 			let bounded_proxies: BoundedVec<_, T::MaxProxies> =
 				vec![proxy_def].try_into().map_err(|_| Error::<T>::TooMany)?;
 
@@ -506,9 +504,9 @@ pub mod pallet {
 			let call_hash = T::CallHasher::hash_of(&call);
 			let now = system::Pallet::<T>::block_number();
 			Self::edit_announcements(&delegate.clone(), |ann| {
-				ann.real != real ||
-					ann.call_hash != call_hash ||
-					now.saturating_sub(ann.height) < def.delay
+				ann.real != real
+					|| ann.call_hash != call_hash
+					|| now.saturating_sub(ann.height) < def.delay
 			})
 			.map_err(|_| Error::<T>::Unannounced)?;
 
@@ -768,8 +766,8 @@ impl<T: Config> Pallet<T> {
 		force_proxy_type: Option<T::ProxyType>,
 	) -> Result<ProxyDefinition<T::AccountId, T::ProxyType, BlockNumberFor<T>>, DispatchError> {
 		let f = |x: &ProxyDefinition<T::AccountId, T::ProxyType, BlockNumberFor<T>>| -> bool {
-			x.delegate.clone() == delegate && 
-				force_proxy_type.as_ref().map_or(true, |y| &x.proxy_type == y)
+			x.delegate.clone() == delegate
+				&& force_proxy_type.as_ref().map_or(true, |y| &x.proxy_type == y)
 		};
 		Ok(Proxies::<T>::get(real).0.into_iter().find(f).ok_or(Error::<T>::NotProxy)?)
 	}
@@ -787,15 +785,19 @@ impl<T: Config> Pallet<T> {
 			match c.is_sub_type() {
 				// Proxy call cannot add or remove a proxy with more permissions than it already
 				// has.
-				Some(Call::add_proxy { ref proxy_type, .. }) |
-				Some(Call::remove_proxy { ref proxy_type, .. })
+				Some(Call::add_proxy { ref proxy_type, .. })
+				| Some(Call::remove_proxy { ref proxy_type, .. })
 					if !def.proxy_type.is_superset(proxy_type) =>
-					false,
+				{
+					false
+				},
 				// Proxy call cannot remove all proxies or kill pure proxies unless it has full
 				// permissions.
 				Some(Call::remove_proxies { .. }) | Some(Call::kill_pure { .. })
 					if def.proxy_type != T::ProxyType::default() =>
-					false,
+				{
+					false
+				},
 				_ => def.proxy_type.filter(c),
 			}
 		});

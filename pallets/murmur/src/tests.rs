@@ -1,42 +1,27 @@
-use crate::{self as murmur, mock::*, Error};
-use ark_serialize::CanonicalSerialize;
-use ark_std::{test_rng, UniformRand};
-use frame_support::{
-	assert_noop, assert_ok, BoundedVec,
-	traits::{
-		ConstU32,
-		OnInitialize,
-	},
-};
+/*
+ * Copyright 2024 by Ideal Labs, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+use crate::{self as murmur, mock::*};
+use codec::Encode;
+use frame_support::{assert_ok, traits::ConstU32, BoundedVec};
 use frame_system::Call as SystemCall;
-
-use sha3::Digest;
-
-use murmur_core::types::{BlockNumber, Identity, IdentityBuilder, Leaf, MergeLeaves};
-
-use murmur_test_utils::{
-    BOTPGenerator, 
-    MurmurStore
-};
-use sp_core::{bls377, Pair, ByteArray};
-use ckb_merkle_mountain_range::{
-	util::{MemMMR, MemStore},
-	MerkleProof,
-};
-
-use codec::{Decode, Encode};
-use sp_consensus_beefy_etf::{
-	known_payloads, AuthorityIndex, BeefyAuthorityId, Commitment, ConsensusLog, EquivocationProof,
-	OnNewValidatorSet, Payload, ValidatorSet, BEEFY_ENGINE_ID, GENESIS_AUTHORITY_SET_ID,
-};
-use ark_serialize::CanonicalDeserialize;
-use w3f_bls::{
-	DoublePublicKey, 
-	DoubleSignature, 
-	EngineBLS,
-	SerializableToBytes, 
-	TinyBLS377
-};
+use murmur_core::types::{BlockNumber, Identity, IdentityBuilder};
+use murmur_test_utils::MurmurStore;
+use sp_consensus_beefy_etf::{known_payloads, Commitment, Payload};
+use w3f_bls::{DoublePublicKey, SerializableToBytes, TinyBLS377};
 
 #[derive(Debug)]
 pub struct BasicIdBuilder;
@@ -87,11 +72,6 @@ fn it_can_create_new_proxy_with_unique_name() {
 	});
 }
 
-fn init_block(block: u64) {
-	System::set_block_number(block);
-	Session::on_initialize(block);
-}
-
 #[test]
 fn it_can_proxy_valid_calls() {
 	let seed = b"seed".to_vec();
@@ -123,19 +103,16 @@ fn it_can_proxy_valid_calls() {
 
 		// the beacon would write a new pulse here, but we will mock it instead
 		// but here, we can just generate the expected OTP code when we mock decryption
-		
-		// now we want to proxy a call 
+
+		// now we want to proxy a call
 		let call = call_remark(vec![1, 2, 3, 4, 5]);
 		// We want to use the ciphertext for block = 1
-		let (proof, commitment, ciphertext, pos) = mmr_store.execute(
-			seed.clone(),
-			when.clone() as u32,
-			call.encode().to_vec(),
-		).unwrap(); 
+		let (proof, commitment, ciphertext, pos) = mmr_store
+			.execute(seed.clone(), when.clone() as u32, call.encode().to_vec())
+			.unwrap();
 
-		let proof_items: Vec<Vec<u8>> = proof.proof_items().iter()
-			.map(|leaf| leaf.0.to_vec())
-			.collect::<Vec<_>>();
+		let proof_items: Vec<Vec<u8>> =
+			proof.proof_items().iter().map(|leaf| leaf.0.to_vec()).collect::<Vec<_>>();
 
 		assert_ok!(Murmur::proxy(
 			RuntimeOrigin::signed(0),
@@ -147,14 +124,7 @@ fn it_can_proxy_valid_calls() {
 			size,
 			Box::new(call),
 		));
-
 	});
-}
-
-fn calculate_signature(id: u8, serialized_resharing: &[u8], message: &[u8]) -> (bls377::Public, bls377::Signature) {
-    let kp = sp_core::bls::Pair::from_seed_slice(&[id;32]).unwrap();
-    let etf_kp = kp.acss_recover(serialized_resharing, 1).unwrap();
-    (etf_kp.public(), etf_kp.sign(message))
 }
 
 fn call_remark(value: Vec<u8>) -> RuntimeCall {

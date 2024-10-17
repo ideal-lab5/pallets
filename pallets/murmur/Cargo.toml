@@ -1,6 +1,6 @@
 [package]
 name = "pallet-murmur"
-version = "1.0.0-dev"
+version = "0.1.0-dev"
 description = "FRAME pallet to create and execute murmur wallets"
 authors.workspace = true
 edition.workspace = true

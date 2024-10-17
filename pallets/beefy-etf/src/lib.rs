@@ -395,39 +395,39 @@ impl<T: Config> Pallet<T> {
 		T::EquivocationReportSystem::publish_evidence((equivocation_proof, key_owner_proof)).ok()
 	}
 
-	fn change_authorities(
-		new: BoundedVec<T::BeefyId, T::MaxAuthorities>,
-		queued: BoundedVec<T::BeefyId, T::MaxAuthorities>,
-	) {
-		Authorities::<T>::put(&new);
+	// fn change_authorities(
+	// 	new: BoundedVec<T::BeefyId, T::MaxAuthorities>,
+	// 	queued: BoundedVec<T::BeefyId, T::MaxAuthorities>,
+	// ) {
+	// 	Authorities::<T>::put(&new);
 
-		// for now.. never update the validator set id
-		let new_id = ValidatorSetId::<T>::get();
-		// let new_id = ValidatorSetId::<T>::get() + 1u64;
-		// ValidatorSetId::<T>::put(new_id);
+	// 	// for now.. never update the validator set id
+	// 	let new_id = ValidatorSetId::<T>::get();
+	// 	// let new_id = ValidatorSetId::<T>::get() + 1u64;
+	// 	// ValidatorSetId::<T>::put(new_id);
 
-		NextAuthorities::<T>::put(&queued);
+	// 	NextAuthorities::<T>::put(&queued);
 
-		// TODO: for now we assume the commitments are static
-		// we still need to implement authority rotation  (ACSS Reshare + Recover
-		let commitments: BoundedVec<T::BeefyId, T::MaxAuthorities> = T::RoundCommitmentProvider::get();
+	// 	// TODO: for now we assume the commitments are static
+	// 	// we still need to implement authority rotation  (ACSS Reshare + Recover
+	// 	let commitments: BoundedVec<T::BeefyId, T::MaxAuthorities> = T::RoundCommitmentProvider::get();
 
-		if let Some(validator_set) = ValidatorSet::<T::BeefyId>::new(new, commitments.clone(), new_id) {
-			let log = DigestItem::Consensus(
-				BEEFY_ENGINE_ID,
-				ConsensusLog::AuthoritiesChange(validator_set.clone()).encode(),
-			);
-			frame_system::Pallet::<T>::deposit_log(log);
+	// 	if let Some(validator_set) = ValidatorSet::<T::BeefyId>::new(new, commitments.clone(), new_id) {
+	// 		let log = DigestItem::Consensus(
+	// 			BEEFY_ENGINE_ID,
+	// 			ConsensusLog::AuthoritiesChange(validator_set.clone()).encode(),
+	// 		);
+	// 		frame_system::Pallet::<T>::deposit_log(log);
 
-			let next_id = new_id + 1;
-			if let Some(next_validator_set) = ValidatorSet::<T::BeefyId>::new(queued, commitments, next_id) {
-				<T::OnNewValidatorSet as OnNewValidatorSet<_>>::on_new_validator_set(
-					&validator_set,
-					&next_validator_set,
-				);
-			}
-		}
-	}
+	// 		let next_id = new_id + 1;
+	// 		if let Some(next_validator_set) = ValidatorSet::<T::BeefyId>::new(queued, commitments, next_id) {
+	// 			<T::OnNewValidatorSet as OnNewValidatorSet<_>>::on_new_validator_set(
+	// 				&validator_set,
+	// 				&next_validator_set,
+	// 			);
+	// 		}
+	// 	}
+	// }
 
 	fn initialize(authorities: &Vec<T::BeefyId>) -> Result<(), ()> {
 		if authorities.is_empty() {
@@ -505,8 +505,8 @@ where
 				T::MaxAuthorities::get(),
 			);
 		}
-		let bounded_next_authorities =
-			BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_authorities);
+		// let bounded_next_authorities =
+		// 	BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_authorities);
 
 		let next_queued_authorities = queued_validators.map(|(_, k)| k).collect::<Vec<_>>();
 		if next_queued_authorities.len() as u32 > T::MaxAuthorities::get() {
@@ -517,8 +517,8 @@ where
 				T::MaxAuthorities::get(),
 			);
 		}
-		let bounded_next_queued_authorities =
-			BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_queued_authorities);
+		// let bounded_next_queued_authorities =
+		// 	BoundedVec::<_, T::MaxAuthorities>::truncate_from(next_queued_authorities);
 
 		// Always issue a change on each `session`, even if validator set hasn't changed.
 		// We want to have at least one BEEFY mandatory block per session.
