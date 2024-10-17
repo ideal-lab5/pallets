@@ -62,7 +62,6 @@ pub(crate) mod beefy_protocol_name {
 	}
 }
 
-
 /// Returns the configuration value to put in
 /// [`sc_network::config::FullNetworkConfiguration`].
 /// For standard protocol name see [`beefy_protocol_name::gossip_protocol_name`].

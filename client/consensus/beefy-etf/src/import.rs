@@ -106,7 +106,7 @@ where
 			.map_err(|e| ImportError(e.to_string()))?
 			.ok_or_else(|| ImportError("Unknown BEEFY genesis".to_string()))?;
 		if number < beefy_genesis {
-			return Err(ImportError("BEEFY genesis is set for future block".to_string()))
+			return Err(ImportError("BEEFY genesis is set for future block".to_string()));
 		}
 		let validator_set = self
 			.runtime
@@ -155,7 +155,7 @@ where
 				// The block is imported as part of some chain sync.
 				// The voter doesn't need to process it now.
 				// It will be detected and processed as part of the voter state init.
-				return Ok(inner_import_result)
+				return Ok(inner_import_result);
 			},
 		}
 

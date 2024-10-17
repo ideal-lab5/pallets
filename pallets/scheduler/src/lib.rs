@@ -91,8 +91,8 @@ use frame_support::{
 	ensure,
 	traits::{
 		schedule::{self, DispatchTime, MaybeHashed},
-		Bounded, CallerTrait, EnsureOrigin, Get, IsType, OriginTrait,
-		PrivilegeCmp, QueryPreimage, StorageVersion, StorePreimage,
+		Bounded, CallerTrait, EnsureOrigin, Get, IsType, OriginTrait, PrivilegeCmp, QueryPreimage,
+		StorageVersion, StorePreimage,
 	},
 	weights::{Weight, WeightMeter},
 };
@@ -100,15 +100,15 @@ use frame_system::{
 	pallet_prelude::BlockNumberFor,
 	{self as system},
 };
+pub use pallet::*;
+use pallet_randomness_beacon::TimelockEncryptionProvider;
 use scale_info::TypeInfo;
 use sp_io::hashing::blake2_256;
 use sp_runtime::{
-	traits::{BadOrigin, Dispatchable, One, Saturating, Zero, ConstU32},
+	traits::{BadOrigin, ConstU32, Dispatchable, One, Saturating, Zero},
 	BoundedVec, DispatchError, RuntimeDebug,
 };
 use sp_std::{borrow::Borrow, cmp::Ordering, marker::PhantomData, prelude::*};
-use pallet_randomness_beacon::{TimelockEncryptionProvider};
-pub use pallet::*;
 
 /// Just a simple index for naming period tasks.
 pub type PeriodicIndex = u32;
@@ -497,7 +497,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		if when <= now {
-			return Err(Error::<T>::TargetBlockNumberInPast.into())
+			return Err(Error::<T>::TargetBlockNumberInPast.into());
 		}
 
 		Ok(when)
@@ -529,10 +529,10 @@ impl<T: Config> Pallet<T> {
 			let _ = agenda.try_push(Some(what));
 			agenda.len() as u32 - 1
 		} else if let Some(hole_index) = agenda.iter().position(|i| i.is_none()) {
-				agenda[hole_index] = Some(what);
-				hole_index as u32
+			agenda[hole_index] = Some(what);
+			hole_index as u32
 		} else {
-			return Err((DispatchError::Exhausted, what))
+			return Err((DispatchError::Exhausted, what));
 		};
 		Agenda::<T>::insert(when, agenda);
 		Ok(index)
@@ -602,7 +602,7 @@ impl<T: Config> Pallet<T> {
 							T::OriginPrivilegeCmp::cmp_privilege(o, &s.origin),
 							Some(Ordering::Less) | None
 						) {
-							return Err(BadOrigin.into())
+							return Err(BadOrigin.into());
 						}
 					};
 					Ok(s.take())
@@ -610,11 +610,10 @@ impl<T: Config> Pallet<T> {
 			)
 		})?;
 		if let Some(s) = scheduled {
-
 			if s.maybe_ciphertext.is_none() && s.maybe_call.is_some() {
 				T::Preimages::drop(&s.maybe_call.clone().unwrap());
 			}
-	
+
 			if let Some(id) = s.maybe_id {
 				Lookup::<T>::remove(id);
 			}
@@ -633,7 +632,7 @@ impl<T: Config> Pallet<T> {
 		let new_time = Self::resolve_time(new_time)?;
 
 		if new_time == when {
-			return Err(Error::<T>::RescheduleNoChange.into())
+			return Err(Error::<T>::RescheduleNoChange.into());
 		}
 
 		let task = Agenda::<T>::try_mutate(when, |agenda| {
@@ -657,7 +656,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<TaskAddress<BlockNumberFor<T>>, DispatchError> {
 		// ensure id it is unique
 		if Lookup::<T>::contains_key(id) {
-			return Err(Error::<T>::FailedToSchedule.into())
+			return Err(Error::<T>::FailedToSchedule.into());
 		}
 
 		let when = Self::resolve_time(when)?;
@@ -700,7 +699,7 @@ impl<T: Config> Pallet<T> {
 								T::OriginPrivilegeCmp::cmp_privilege(o, &s.origin),
 								Some(Ordering::Less) | None
 							) {
-								return Err(BadOrigin.into())
+								return Err(BadOrigin.into());
 							}
 							T::Preimages::drop(&s.maybe_call.clone().unwrap());
 						}
@@ -727,7 +726,7 @@ impl<T: Config> Pallet<T> {
 		let (when, index) = lookup.ok_or(Error::<T>::NotFound)?;
 
 		if new_time == when {
-			return Err(Error::<T>::RescheduleNoChange.into())
+			return Err(Error::<T>::RescheduleNoChange.into());
 		}
 
 		let task = Agenda::<T>::try_mutate(when, |agenda| {
@@ -776,7 +775,7 @@ impl<T: Config> Pallet<T> {
 	/// Service up to `max` agendas queue starting from earliest incompletely executed agenda.
 	fn service_agendas(weight: &mut WeightMeter, now: BlockNumberFor<T>, max: u32) {
 		if weight.try_consume(T::WeightInfo::service_agendas_base()).is_err() {
-			return
+			return;
 		}
 
 		let mut incomplete_since = now + One::one();
@@ -791,7 +790,7 @@ impl<T: Config> Pallet<T> {
 			if !Self::service_agenda(weight, &mut executed, now, when, then, u32::max_value()) {
 				incomplete_since = incomplete_since.min(when);
 			}
-			
+
 			when.saturating_inc();
 			count_down.saturating_dec();
 		}
@@ -832,7 +831,6 @@ impl<T: Config> Pallet<T> {
 		let mut dropped = 0;
 
 		for (agenda_index, _) in ordered.into_iter().take(max as usize) {
-
 			let mut task = match agenda[agenda_index as usize].take() {
 				None => continue,
 				Some(t) => t,
@@ -840,31 +838,36 @@ impl<T: Config> Pallet<T> {
 
 			if let Some(ref ciphertext) = task.maybe_ciphertext {
 				// the task should be delayed until `then` == `when`
-				if then == when  {
+				if then == when {
 					task.maybe_call = T::TlockProvider::decrypt_at(&ciphertext.clone(), then)
 						.map_err(|_| pallet_randomness_beacon::TimelockError::DecryptionFailed)
 						.and_then(|bare| {
-							if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut bare.message.as_slice()) {
+							if let Ok(call) =
+								<T as Config>::RuntimeCall::decode(&mut bare.message.as_slice())
+							{
 								Ok(call)
 							} else {
 								Err(pallet_randomness_beacon::TimelockError::DecryptionFailed)
 							}
 						})
-						.and_then(|call| T::Preimages::bound(call)
-						.map_err(|_| pallet_randomness_beacon::TimelockError::DecryptionFailed))
+						.and_then(|call| {
+							T::Preimages::bound(call).map_err(|_| {
+								pallet_randomness_beacon::TimelockError::DecryptionFailed
+							})
+						})
 						.ok();
 				} else {
 					// insert the task back into the agenda and continue
 					agenda[agenda_index as usize] = Some(task);
 					postponed += 1;
-					continue
+					continue;
 				}
 			}
 
 			// if we haven't dispatched the call and the call data is empty
 			// then there is no valid call, so ignore this task
 			if task.maybe_call.is_none() {
-				continue
+				continue;
 			}
 
 			let base_weight = T::WeightInfo::service_task(
@@ -875,7 +878,7 @@ impl<T: Config> Pallet<T> {
 			);
 			if !weight.can_consume(base_weight) {
 				postponed += 1;
-				break
+				break;
 			}
 			let result = Self::service_task(weight, now, when, agenda_index, *executed == 0, task);
 			agenda[agenda_index as usize] = match result {
@@ -929,7 +932,7 @@ impl<T: Config> Pallet<T> {
 					id: task.maybe_id,
 				});
 
-				return Err((Unavailable, Some(task)))
+				return Err((Unavailable, Some(task)));
 			},
 		};
 
@@ -1004,14 +1007,15 @@ impl<T: Config> Pallet<T> {
 		let max_weight = base_weight.saturating_add(call_weight);
 
 		if !weight.can_consume(max_weight) {
-			return Err(())
+			return Err(());
 		}
 
 		let dispatch_origin = origin.into();
 		let (maybe_actual_call_weight, result) = match call.dispatch(dispatch_origin) {
 			Ok(post_info) => (post_info.actual_weight, Ok(())),
-			Err(error_and_info) =>
-				(error_and_info.post_info.actual_weight, Err(error_and_info.error)),
+			Err(error_and_info) => {
+				(error_and_info.post_info.actual_weight, Err(error_and_info.error))
+			},
 		};
 		let call_weight = maybe_actual_call_weight.unwrap_or(call_weight);
 		let _ = weight.try_consume(base_weight);
@@ -1059,7 +1063,7 @@ impl<T: Config> schedule::v2::Named<BlockNumberFor<T>, <T as Config>::RuntimeCal
 {
 	type Address = TaskAddress<BlockNumberFor<T>>;
 	type Hash = T::Hash;
- 
+
 	fn schedule_named(
 		id: Vec<u8>,
 		when: DispatchTime<BlockNumberFor<T>>,

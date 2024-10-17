@@ -1,13 +1,14 @@
 //! # Drand Bridge Pallet
 //!
-//! A pallet to bridge to [drand](drand.love)'s Quicknet, injecting publicly verifiable randomness into the runtime
+//! A pallet to bridge to [drand](drand.love)'s Quicknet, injecting publicly verifiable randomness
+//! into the runtime
 //!
 //! ## Overview
 //!
 //! Quicknet chain runs in an 'unchained' mode, producing a fresh pulse of randomness every 3s
-//! This pallet implements an offchain worker that consumes pulses from quicket and then sends a signed
-//! transaction to encode them in the runtime. The runtime uses the optimized arkworks host functions
-//! to efficiently verify the pulse.
+//! This pallet implements an offchain worker that consumes pulses from quicket and then sends a
+//! signed transaction to encode them in the runtime. The runtime uses the optimized arkworks host
+//! functions to efficiently verify the pulse.
 //!
 //! Run `cargo doc --package pallet-drand --open` to view this pallet's documentation.
 
@@ -24,12 +25,14 @@ use alloc::{format, string::String, vec, vec::Vec};
 use ark_ec::{hashing::HashToCurve, AffineRepr};
 use ark_serialize::CanonicalSerialize;
 use codec::{Decode, Encode};
-use frame_support::pallet_prelude::*;
-use frame_support::traits::Randomness;
-use frame_system::offchain::SignedPayload;
-use frame_system::offchain::SigningTypes;
-use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendUnsignedTransaction, Signer};
-use frame_system::pallet_prelude::BlockNumberFor;
+use frame_support::{pallet_prelude::*, traits::Randomness};
+use frame_system::{
+	offchain::{
+		AppCrypto, CreateSignedTransaction, SendUnsignedTransaction, SignedPayload, Signer,
+		SigningTypes,
+	},
+	pallet_prelude::BlockNumberFor,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sp_ark_bls12_381::{G1Affine as G1AffineOpt, G2Affine as G2AffineOpt};
@@ -435,9 +438,9 @@ pub mod pallet {
 						let current_block = frame_system::Pallet::<T>::block_number();
 						let mut last_block = current_block.clone();
 
-						// TODO: improve this, it's not efficient as it can be very slow when the history is large.
-						// We could set a new storage value with the latest round.
-						// Retrieve the lastest pulse and verify the round number
+						// TODO: improve this, it's not efficient as it can be very slow when the
+						// history is large. We could set a new storage value with the latest
+						// round. Retrieve the lastest pulse and verify the round number
 						// https://github.com/ideal-lab5/pallet-drand/issues/4
 						loop {
 							if let Some(last_pulse) = Pulses::<T>::get(last_block) {
@@ -455,7 +458,8 @@ pub mod pallet {
 
 						// Store the new pulse
 						Pulses::<T>::insert(current_block, pulse_payload.pulse.clone());
-						// now increment the block number at which we expect next unsigned transaction.
+						// now increment the block number at which we expect next unsigned
+						// transaction.
 						<NextUnsignedAt<T>>::put(current_block + One::one());
 						// Emit event for new pulse
 						Self::deposit_event(Event::NewPulse { round: pulse_payload.pulse.round });
@@ -474,7 +478,6 @@ pub mod pallet {
 		///
 		/// * `origin`: the root user
 		/// * `config`: the beacon configuration
-		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::set_beacon_config())]
 		pub fn set_beacon_config(
@@ -722,16 +725,16 @@ pub trait Verifier {
 /// A verifier to check values received from quicknet. It outputs true if valid, false otherwise
 ///
 /// [Quicknet](https://drand.love/blog/quicknet-is-live-on-the-league-of-entropy-mainnet) operates in an unchained mode,
-/// so messages contain only the round number. in addition, public keys are in G2 and signatures are in G1
+/// so messages contain only the round number. in addition, public keys are in G2 and signatures are
+/// in G1
 ///
 /// Values are valid if the pairing equality holds:
 ///			 $e(sig, g_2) == e(msg_on_curve, pk)$
 /// where $sig \in \mathbb{G}_1$ is the signature
 ///       $g_2 \in \mathbb{G}_2$ is a generator
-///       $msg_on_curve \in \mathbb{G}_1$ is a hash of the message that drand signed (hash(round_number))
-///       $pk \in \mathbb{G}_2$ is the public key, read from the input public parameters
-///
-///
+///       $msg_on_curve \in \mathbb{G}_1$ is a hash of the message that drand signed
+/// (hash(round_number))       $pk \in \mathbb{G}_2$ is the public key, read from the input public
+/// parameters
 pub struct QuicknetVerifier;
 
 impl Verifier for QuicknetVerifier {

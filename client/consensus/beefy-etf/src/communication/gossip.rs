@@ -156,12 +156,13 @@ impl<B: Block> Filter<B> {
 				f.start = cfg.start;
 				f.end = cfg.end;
 			},
-			_ =>
+			_ => {
 				self.inner = Some(FilterInner {
 					start: cfg.start,
 					end: cfg.end,
 					validator_set: cfg.validator_set.clone(),
-				}),
+				})
+			},
 		}
 	}
 

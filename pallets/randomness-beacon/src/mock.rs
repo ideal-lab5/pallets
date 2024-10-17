@@ -21,10 +21,8 @@ use frame_support::{
 	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use sp_consensus_beefy_etf::{
-	mmr::MmrLeafVersion,
-	test_utils::etf_genesis,
-};
+use sp_consensus_beefy_etf::{mmr::MmrLeafVersion, test_utils::etf_genesis};
+use sp_core::Pair;
 use sp_io::TestExternalities;
 use sp_runtime::{
 	app_crypto::bls377::Public,
@@ -32,14 +30,11 @@ use sp_runtime::{
 	traits::{ConvertInto, Keccak256, OpaqueKeys},
 	BuildStorage,
 };
-use sp_core::Pair;
 use sp_state_machine::BasicExternalities;
 
 use crate as pallet_randomness_beacon;
 
-pub use sp_consensus_beefy_etf::{
-	bls_crypto::AuthorityId as BeefyId, mmr::BeefyDataProvider, 
-};
+pub use sp_consensus_beefy_etf::{bls_crypto::AuthorityId as BeefyId, mmr::BeefyDataProvider};
 
 impl_opaque_keys! {
 	pub struct MockSessionKeys {
@@ -55,7 +50,7 @@ construct_runtime!(
 		System: frame_system,
 		Session: pallet_session,
 		Mmr: pallet_mmr,
-        Beacon: pallet_randomness_beacon,
+		Beacon: pallet_randomness_beacon,
 		Etf: pallet_etf,
 		Beefy: pallet_beefy,
 		BeefyMmr: pallet_beefy_mmr,
@@ -140,8 +135,8 @@ impl BeefyDataProvider<Vec<u8>> for DummyDataProvider {
 }
 
 impl pallet_randomness_beacon::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type MaxPulses = ConstU32<256000>;
+	type RuntimeEvent = RuntimeEvent;
+	type MaxPulses = ConstU32<256000>;
 }
 
 pub struct MockSessionManager;
@@ -165,7 +160,7 @@ impl pallet_session::SessionManager<u64> for MockSessionManager {
 // with the first one containing information to reconstruct the uncompressed key.
 pub fn mock_beefy_id(id: u8) -> BeefyId {
 	// generate a new keypair and get the public key
-	let kp = sp_core::bls::Pair::from_seed_slice(&[id;32]).unwrap();
+	let kp = sp_core::bls::Pair::from_seed_slice(&[id; 32]).unwrap();
 	BeefyId::from(kp.public())
 }
 
@@ -193,19 +188,17 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<(u64, BeefyId)>) -> TestExt
 	});
 
 	let (round_pubkey, genesis_resharing) = etf_genesis::<w3f_bls::TinyBLS377>(
-		authorities.iter()
-			.map(|(_, id)| id.clone())
-			.collect::<Vec<_>>()
+		authorities.iter().map(|(_, id)| id.clone()).collect::<Vec<_>>(),
 	);
 
-	pallet_etf::GenesisConfig::<Test> { 
-		genesis_resharing: genesis_resharing,
-		round_pubkey: round_pubkey,
+	pallet_etf::GenesisConfig::<Test> {
+		genesis_resharing,
+		round_pubkey,
 		_phantom: Default::default(),
 	}
-		.assimilate_storage(&mut t)
-		.unwrap();
-    
+	.assimilate_storage(&mut t)
+	.unwrap();
+
 	pallet_session::GenesisConfig::<Test> { keys: session_keys }
 		.assimilate_storage(&mut t)
 		.unwrap();

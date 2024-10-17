@@ -546,7 +546,13 @@ fn pure_works() {
 		);
 
 		// other calls to pure allowed as long as they're not exactly the same.
-		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::JustTransfer, 0, 0, false));
+		assert_ok!(Proxy::create_pure(
+			RuntimeOrigin::signed(1),
+			ProxyType::JustTransfer,
+			0,
+			0,
+			false
+		));
 		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 1, false));
 		let anon2 = Proxy::pure_account(&2, &ProxyType::Any, 0, None);
 		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(2), ProxyType::Any, 0, 0, false));

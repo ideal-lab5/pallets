@@ -35,14 +35,13 @@ use codec::{Codec, Decode, DecodeAll, Encode};
 use futures::{stream::Fuse, FutureExt, StreamExt};
 use log::{debug, error, info, log_enabled, trace, warn};
 use sc_client_api::{Backend, FinalityNotification, FinalityNotifications, HeaderBackend};
-use sc_utils::notification::NotificationReceiver;
-use sp_api::ProvideRuntimeApi;
-use sp_arithmetic::traits::{AtLeast32Bit, Saturating};
-use sp_consensus::SyncOracle;
 use sc_transaction_pool_api::{
 	LocalTransactionPool, OffchainTransactionPoolFactory, TransactionPool,
 };
-use sp_api::ApiExt;
+use sc_utils::notification::NotificationReceiver;
+use sp_api::{ApiExt, ProvideRuntimeApi};
+use sp_arithmetic::traits::{AtLeast32Bit, Saturating};
+use sp_consensus::SyncOracle;
 
 #[cfg(feature = "bls-experimental")]
 use sp_consensus_beefy_etf::bls_crypto::{AuthorityId, Signature};
@@ -51,9 +50,9 @@ use sp_consensus_beefy_etf::bls_crypto::{AuthorityId, Signature};
 use sp_consensus_beefy_etf::ecdsa_crypto::{AuthorityId, Signature};
 
 use sp_consensus_beefy_etf::{
-	check_equivocation_proof,
-	BeefyApi, BeefySignatureHasher, Commitment, EquivocationProof, PayloadProvider, ValidatorSetId,
-	ValidatorSet, VersionedFinalityProof, VoteMessage, BEEFY_ENGINE_ID, Payload, known_payloads,
+	check_equivocation_proof, known_payloads, BeefyApi, BeefySignatureHasher, Commitment,
+	EquivocationProof, Payload, PayloadProvider, ValidatorSet, ValidatorSetId,
+	VersionedFinalityProof, VoteMessage, BEEFY_ENGINE_ID,
 };
 use sp_runtime::{
 	generic::BlockId,
@@ -116,24 +115,24 @@ impl<B: Block> VoterOracle<B> {
 		let mut validate = || -> bool {
 			let best_grandpa = *grandpa_header.number();
 			if sessions.is_empty() || best_beefy > best_grandpa {
-				return false
+				return false;
 			}
 			for (idx, session) in sessions.iter().enumerate() {
 				let start = session.session_start();
 				if session.validators().is_empty() {
-					return false
+					return false;
 				}
 				if start > best_grandpa || start <= prev_start {
-					return false
+					return false;
 				}
 				#[cfg(not(test))]
 				if let Some(prev_id) = prev_validator_id {
 					if session.validator_set_id() <= prev_id {
-						return false
+						return false;
 					}
 				}
 				if idx != 0 && session.mandatory_done() {
-					return false
+					return false;
 				}
 				prev_start = session.session_start();
 				prev_validator_id = Some(session.validator_set_id());
@@ -273,7 +272,6 @@ impl<B: Block> VoterOracle<B> {
 			target
 		);
 		target
-		
 	}
 
 	/// if we are running etf, we vote on every grandpa block for now
@@ -281,7 +279,6 @@ impl<B: Block> VoterOracle<B> {
 	pub fn voting_target(&self) -> Option<NumberFor<B>> {
 		let best_grandpa = *self.best_grandpa_block_header.number();
 		Some(best_grandpa)
-		
 	}
 }
 
@@ -523,7 +520,7 @@ where
 	) -> Result<(), Error> {
 		let block_num = vote.commitment.block_number;
 		match self.voting_oracle().triage_round(block_num)? {
-			RoundAction::Process =>
+			RoundAction::Process => {
 				if let Some(finality_proof) = self.handle_vote(vote)? {
 					let gossip_proof = GossipMessage::<B>::FinalityProof(finality_proof);
 					let encoded_proof = gossip_proof.encode();
@@ -532,7 +529,8 @@ where
 						encoded_proof,
 						true,
 					);
-				},
+				}
+			},
 			RoundAction::Drop => metric_inc!(self.metrics, beefy_stale_votes),
 			RoundAction::Enqueue => error!(target: LOG_TARGET, "🥩 unexpected vote: {:?}.", vote),
 		};
@@ -564,9 +562,9 @@ where
 				} else {
 					metric_inc!(self.metrics, beefy_buffered_justifications_dropped);
 					warn!(
-						target: LOG_TARGET,
-						"🥩 Buffer justification dropped for round: {:?}.", block_num
-				);
+							target: LOG_TARGET,
+							"🥩 Buffer justification dropped for round: {:?}.", block_num
+					);
 				}
 			},
 			RoundAction::Drop => metric_inc!(self.metrics, beefy_stale_justifications),
@@ -592,7 +590,7 @@ where
 				// New state is persisted after finalization.
 				self.finalize(finality_proof.clone())?;
 				metric_inc!(self.metrics, beefy_good_votes_processed);
-				return Ok(Some(finality_proof))
+				return Ok(Some(finality_proof));
 			},
 			VoteImportResult::Ok => {
 				// Persist state after handling mandatory block vote.
@@ -631,7 +629,7 @@ where
 
 		if block_num <= self.persisted_state.voting_oracle.best_beefy_block {
 			// we've already finalized this round before, short-circuit.
-			return Ok(())
+			return Ok(());
 		}
 
 		// Finalize inner round and update voting_oracle state.
@@ -675,21 +673,16 @@ where
 			.gossip_filter_config()
 			.map(|filter| self.comms.gossip_validator.update_filter(filter))?;
 
-		// finally update the latest signatures in storage 
-		let best_header = self.persisted_state
-            .voting_oracle
-            .best_grandpa_block_header
-            .clone();
-        let best_hash = best_header.hash();
+		// finally update the latest signatures in storage
+		let best_header = self.persisted_state.voting_oracle.best_grandpa_block_header.clone();
+		let best_hash = best_header.hash();
 
-        let mut signatures: Vec<Option<Signature>> = match finality_proof {
-            VersionedFinalityProof::V1(ref sc) => sc.signatures.clone()
-        };
+		let mut signatures: Vec<Option<Signature>> = match finality_proof {
+			VersionedFinalityProof::V1(ref sc) => sc.signatures.clone(),
+		};
 
-		let signatures: Vec<Vec<u8>> = signatures.iter()
-			.flatten()
-			.map(|sig| sig.encode())
-			.collect::<Vec<_>>();
+		let signatures: Vec<Vec<u8>> =
+			signatures.iter().flatten().map(|sig| sig.encode()).collect::<Vec<_>>();
 
 		info!(
 			target: LOG_TARGET,
@@ -708,11 +701,7 @@ where
 		runtime_api
 			.register_extension(self.offchain_tx_pool_factory.offchain_transaction_pool(best_hash));
 
-		runtime_api.submit_unsigned_pulse(
-            best_hash,
-            signatures,
-            block_num,
-        );
+		runtime_api.submit_unsigned_pulse(best_hash, signatures, block_num);
 
 		Ok(())
 	}
@@ -803,21 +792,22 @@ where
 				target: LOG_TARGET,
 				"🥩 Missing validator id - can't vote for: {:?}", target_hash
 			);
-			return Ok(())
+			return Ok(());
 		};
 
-		if let Some((signature, _id, commitment)) = self.get_signed_payload(
-			target_number,
-			target_header,
-			// target_hash,
-			validator_set_id,
-			authority_id.clone(),
-		).map_err(|err| {
-			error!(target: LOG_TARGET, "🥩 Error calculating the signature {:?}", err);
-			// return Ok(());
-			return err;
-		})? {
-			
+		if let Some((signature, _id, commitment)) = self
+			.get_signed_payload(
+				target_number,
+				target_header,
+				// target_hash,
+				validator_set_id,
+				authority_id.clone(),
+			)
+			.map_err(|err| {
+				error!(target: LOG_TARGET, "🥩 Error calculating the signature {:?}", err);
+				// return Ok(());
+				return err;
+			})? {
 			let vote = VoteMessage { commitment, id: authority_id, signature };
 			if let Some(finality_proof) = self.handle_vote(vote.clone()).map_err(|err| {
 				error!(target: LOG_TARGET, "🥩 Error handling self vote: {}", err);
@@ -833,7 +823,7 @@ where
 				let encoded_vote = GossipMessage::<B>::Vote(vote).encode();
 				self.comms.gossip_engine.gossip_message(votes_topic::<B>(), encoded_vote, false);
 			}
-	
+
 			// Persist state after vote to avoid double voting in case of voter restarts.
 			self.persisted_state.best_voted = target_number;
 			metric_set!(self.metrics, beefy_best_voted, target_number);
@@ -857,14 +847,14 @@ where
 		let commitment = Commitment { payload, block_number: target_number, validator_set_id };
 		let encoded_commitment = commitment.encode();
 
-        let (etf_authority_id, signature) =
-            match self.etf_extract(target_hash, authority_id.clone(), &encoded_commitment) {
-                Some(sig) => sig,
-                None => {
-                    error!(target: LOG_TARGET, "🎲 Error calculating ETF signature");
-                    return Ok(None);
-                }
-            };
+		let (etf_authority_id, signature) =
+			match self.etf_extract(target_hash, authority_id.clone(), &encoded_commitment) {
+				Some(sig) => sig,
+				None => {
+					error!(target: LOG_TARGET, "🎲 Error calculating ETF signature");
+					return Ok(None);
+				},
+			};
 
 		info!(
 			target: LOG_TARGET,
@@ -889,7 +879,7 @@ where
 			hash
 		} else {
 			warn!(target: LOG_TARGET, "🥩 No MMR root digest found for: {:?}", target_hash);
-			return Ok(None)
+			return Ok(None);
 		};
 		let commitment = Commitment { payload, block_number: target_number, validator_set_id };
 		let encoded_commitment = commitment.encode();
@@ -898,7 +888,7 @@ where
 			Ok(sig) => sig,
 			Err(err) => {
 				warn!(target: LOG_TARGET, "🥩 Error signing commitment: {:?}", err);
-				return Ok(None)
+				return Ok(None);
 			},
 		};
 
@@ -933,38 +923,36 @@ where
 	}
 
 	/// execute the ETF extract algorithm
-    /// outputs a (threshold) IBE secret and corresponding DLEQ proof
-    #[cfg(feature = "bls-experimental")]
-    fn etf_extract(
-        &mut self, 
-        hash: B::Hash, 
-        id: AuthorityId, 
-        message: &[u8]
-    ) -> Option<(AuthorityId, Signature)> {
-        let runtime_api = self.runtime.runtime_api();
+	/// outputs a (threshold) IBE secret and corresponding DLEQ proof
+	#[cfg(feature = "bls-experimental")]
+	fn etf_extract(
+		&mut self,
+		hash: B::Hash,
+		id: AuthorityId,
+		message: &[u8],
+	) -> Option<(AuthorityId, Signature)> {
+		let runtime_api = self.runtime.runtime_api();
 
-        info!(
+		info!(
+			target: LOG_TARGET,
+			"🎲 run ACSS recovery at best grandpa: #{:?}.",
+			hash
+		);
+		if let Some(Some(validator_set)) = runtime_api.validator_set(hash).ok() {
+			debug!(target: LOG_TARGET, "🎲 [ETF] validator_set: {:?}", validator_set);
+			if let Some(Some(pok_bytes)) = runtime_api.read_share(hash, id.clone()).ok() {
+				debug!(target: LOG_TARGET, "🎲 [ETF] pok_bytes: {:?}", pok_bytes);
+				match self.key_store.etf_sign(&id, &pok_bytes, &message, validator_set.len() as u8)
+				{
+					Ok((pk, sig)) => return Some((pk, sig)),
+					Err(e) => error!(target: LOG_TARGET, "🎲 [ETF] Error signing: {:?}", e),
+				}
+			}
+		}
+		debug!(
             target: LOG_TARGET,
-            "🎲 run ACSS recovery at best grandpa: #{:?}.",
-            hash
-        );
-        if let Some(Some(validator_set)) = runtime_api.validator_set(hash).ok() {
-            debug!(target: LOG_TARGET, "🎲 [ETF] validator_set: {:?}", validator_set);
-            if let Some(Some(pok_bytes)) = runtime_api.read_share(hash, id.clone()).ok() {
-                debug!(target: LOG_TARGET, "🎲 [ETF] pok_bytes: {:?}", pok_bytes);
-                match self
-                    .key_store
-                    .etf_sign(&id, &pok_bytes, &message, validator_set.len() as u8)
-                {
-                    Ok((pk, sig)) => return Some((pk, sig)),
-                    Err(e) => error!(target: LOG_TARGET, "🎲 [ETF] Error signing: {:?}", e),
-                }
-            }
-        }
-        debug!(
-            target: LOG_TARGET, 
-            "🎲 [ETF] extract failed with id: {:?} and message: {:?}", 
-            id, 
+            "🎲 [ETF] extract failed with id: {:?} and message: {:?}",
+            id,
             message);
 		None
 	}
@@ -1024,7 +1012,7 @@ where
 				// Process finality notifications first since these drive the voter.
 				notification = finality_notifications.next() => {
 					if let Some(notif) = notification {
-						
+
 						if let Err(err) = self.handle_finality_notification(&notif) {
 							break err;
 						}
@@ -1118,11 +1106,11 @@ where
 
 		if !check_equivocation_proof::<_, _, BeefySignatureHasher>(&proof) {
 			debug!(target: LOG_TARGET, "🥩 Skip report for bad equivocation {:?}", proof);
-			return Ok(())
+			return Ok(());
 		} else if let Some(local_id) = self.key_store.authority_id(validators) {
 			if offender_id == local_id {
 				warn!(target: LOG_TARGET, "🥩 Skip equivocation report for own equivocation");
-				return Ok(())
+				return Ok(());
 			}
 		}
 
@@ -1150,7 +1138,7 @@ where
 					target: LOG_TARGET,
 					"🥩 Equivocation offender not part of the authority set."
 				);
-				return Ok(())
+				return Ok(());
 			},
 		};
 

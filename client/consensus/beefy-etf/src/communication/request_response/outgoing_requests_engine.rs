@@ -111,7 +111,7 @@ impl<B: Block> OnDemandJustificationsEngine<B> {
 		let live = self.live_peers.lock();
 		while let Some(peer) = self.peers_cache.pop_front() {
 			if live.contains(&peer) {
-				return Some(peer)
+				return Some(peer);
 			}
 		}
 		None
@@ -145,7 +145,7 @@ impl<B: Block> OnDemandJustificationsEngine<B> {
 	pub fn request(&mut self, block: NumberFor<B>, active_set: ValidatorSet<AuthorityId>) {
 		// ignore new requests while there's already one pending
 		if matches!(self.state, State::AwaitingResponse(_, _, _)) {
-			return
+			return;
 		}
 		self.reset_peers_cache_for_block(block);
 
@@ -236,7 +236,7 @@ impl<B: Block> OnDemandJustificationsEngine<B> {
 		let (peer, req_info, resp) = match &mut self.state {
 			State::Idle => {
 				futures::future::pending::<()>().await;
-				return ResponseInfo::Pending
+				return ResponseInfo::Pending;
 			},
 			State::AwaitingResponse(peer, req_info, receiver) => {
 				let resp = receiver.await;

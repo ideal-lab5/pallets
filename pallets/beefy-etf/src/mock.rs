@@ -42,9 +42,7 @@ pub use sp_consensus_beefy_etf::bls_crypto::AuthorityId as BeefyId;
 // #[cfg(not(feature = "bls-experimental"))]
 // pub use sp_consensus_beefy_etf::ecdsa_crypto::AuthorityId as BeefyId;
 
-pub use sp_consensus_beefy_etf::{
-	ConsensusLog, BEEFY_ENGINE_ID
-};
+pub use sp_consensus_beefy_etf::{ConsensusLog, BEEFY_ENGINE_ID};
 
 impl_opaque_keys! {
 	pub struct MockSessionKeys {
@@ -272,16 +270,10 @@ impl ExtBuilder {
 			.assimilate_storage(&mut t)
 			.unwrap();
 
-		let genesis_resharing = self
-			.commitments
-			.iter()
-			.map(|comm| (comm.clone(), vec![2]))
-			.collect();
+		let genesis_resharing =
+			self.commitments.iter().map(|comm| (comm.clone(), vec![2])).collect();
 
-		pallet_etf::GenesisConfig::<Test> { 
-			genesis_resharing: genesis_resharing,
-			round_pubkey: vec![1]
-		}
+		pallet_etf::GenesisConfig::<Test> { genesis_resharing, round_pubkey: vec![1] }
 			.assimilate_storage(&mut t)
 			.unwrap();
 
@@ -301,10 +293,8 @@ impl ExtBuilder {
 
 		staking_config.assimilate_storage(&mut t).unwrap();
 
-		let beefy_config = pallet_beefy::GenesisConfig::<Test> {
-			authorities: vec![],
-			genesis_block: None,
-		};
+		let beefy_config =
+			pallet_beefy::GenesisConfig::<Test> { authorities: vec![], genesis_block: None };
 
 		beefy_config.assimilate_storage(&mut t).unwrap();
 

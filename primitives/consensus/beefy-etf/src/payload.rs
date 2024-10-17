@@ -32,7 +32,6 @@ pub mod known_payloads {
 	/// Encoded value should contain a [`crate::MmrRootHash`] type (i.e. 32-bytes hash).
 	pub const MMR_ROOT_ID: BeefyPayloadId = *b"mh";
 
-	
 	/// A [`Payload`](super::Payload) identifier for empty ETF payloads.
 	pub const ETF_SIGNATURE: BeefyPayloadId = *b"ef";
 }

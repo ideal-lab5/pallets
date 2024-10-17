@@ -174,10 +174,7 @@ pub mod pallet {
 			// use block number one instead of chain-genesis.
 			let genesis_block = Some(One::one());
 			// by default, etf consensus will fail, must be intentionally seeded
-			Self { 
-				authorities: Vec::new(), 
-				genesis_block,
-			}
+			Self { authorities: Vec::new(), genesis_block }
 		}
 	}
 
@@ -206,7 +203,6 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		
 		/// Report voter equivocation/misbehavior. This method will verify the
 		/// equivocation proof and validate the given key ownership proof
 		/// against the extracted offender. If both are valid, the offence
@@ -363,11 +359,9 @@ impl<T: Config> Pallet<T> {
 		);
 		Ok(())
 	}
-
 }
 
 impl<T: Config> Pallet<T> {
-
 	/// Return the current validator set id
 	pub fn validator_set_id() -> sp_consensus_beefy_etf::ValidatorSetId {
 		<ValidatorSetId<T>>::get()
@@ -376,7 +370,8 @@ impl<T: Config> Pallet<T> {
 	/// Return the current active BEEFY validator set.
 	pub fn validator_set() -> Option<ValidatorSet<T::BeefyId>> {
 		let validators: BoundedVec<T::BeefyId, T::MaxAuthorities> = Authorities::<T>::get();
-		let commitments: BoundedVec<T::BeefyId, T::MaxAuthorities> = T::RoundCommitmentProvider::get();
+		let commitments: BoundedVec<T::BeefyId, T::MaxAuthorities> =
+			T::RoundCommitmentProvider::get();
 		let id: sp_consensus_beefy_etf::ValidatorSetId = ValidatorSetId::<T>::get();
 		ValidatorSet::<T::BeefyId>::new(validators, commitments, id)
 	}
@@ -410,18 +405,19 @@ impl<T: Config> Pallet<T> {
 
 	// 	// TODO: for now we assume the commitments are static
 	// 	// we still need to implement authority rotation  (ACSS Reshare + Recover
-	// 	let commitments: BoundedVec<T::BeefyId, T::MaxAuthorities> = T::RoundCommitmentProvider::get();
+	// 	let commitments: BoundedVec<T::BeefyId, T::MaxAuthorities> =
+	// T::RoundCommitmentProvider::get();
 
-	// 	if let Some(validator_set) = ValidatorSet::<T::BeefyId>::new(new, commitments.clone(), new_id) {
-	// 		let log = DigestItem::Consensus(
+	// 	if let Some(validator_set) = ValidatorSet::<T::BeefyId>::new(new, commitments.clone(),
+	// new_id) { 		let log = DigestItem::Consensus(
 	// 			BEEFY_ENGINE_ID,
 	// 			ConsensusLog::AuthoritiesChange(validator_set.clone()).encode(),
 	// 		);
 	// 		frame_system::Pallet::<T>::deposit_log(log);
 
 	// 		let next_id = new_id + 1;
-	// 		if let Some(next_validator_set) = ValidatorSet::<T::BeefyId>::new(queued, commitments, next_id) {
-	// 			<T::OnNewValidatorSet as OnNewValidatorSet<_>>::on_new_validator_set(
+	// 		if let Some(next_validator_set) = ValidatorSet::<T::BeefyId>::new(queued, commitments,
+	// next_id) { 			<T::OnNewValidatorSet as OnNewValidatorSet<_>>::on_new_validator_set(
 	// 				&validator_set,
 	// 				&next_validator_set,
 	// 			);
@@ -431,11 +427,11 @@ impl<T: Config> Pallet<T> {
 
 	fn initialize(authorities: &Vec<T::BeefyId>) -> Result<(), ()> {
 		if authorities.is_empty() {
-			return Ok(())
+			return Ok(());
 		}
 
 		if !Authorities::<T>::get().is_empty() {
-			return Err(())
+			return Err(());
 		}
 
 		let bounded_authorities =
@@ -450,8 +446,9 @@ impl<T: Config> Pallet<T> {
 
 		let public_commitments: Vec<T::BeefyId> = T::RoundCommitmentProvider::get().into();
 
-		if let Some(validator_set) = ValidatorSet::<T::BeefyId>::new(
-			authorities.clone(), public_commitments.clone(), id) {
+		if let Some(validator_set) =
+			ValidatorSet::<T::BeefyId>::new(authorities.clone(), public_commitments.clone(), id)
+		{
 			let next_id = id + 1;
 			if let Some(next_validator_set) =
 				ValidatorSet::<T::BeefyId>::new(authorities.clone(), public_commitments, next_id)

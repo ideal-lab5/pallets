@@ -23,8 +23,8 @@
 // use frame_support::{
 // 	ord_parameter_types, parameter_types,
 // 	traits::{
-// 		ConstU32, ConstU64, ConstBool, 
-// 		Contains, EitherOfDiverse, EqualPrivilegeOnly, 
+// 		ConstU32, ConstU64, ConstBool,
+// 		Contains, EitherOfDiverse, EqualPrivilegeOnly,
 // 		OnFinalize, OnInitialize,
 // 	},
 // 	weights::constants::RocksDbWeight,
@@ -330,12 +330,12 @@
 // 		let ibe_pp_bytes: [u8;96] = convert_to_bytes::<G2, 96>(G2::generator())
 // 			.try_into()
 // 			.expect("The slot secret should be valid; qed;");
-		
+
 // 		let pt = DefaultEtfClient::<BfIbe>::decrypt(
-// 			ibe_pp_bytes.to_vec(), 
-// 			ciphertext.ciphertext.to_vec(), 
-// 			ciphertext.nonce.to_vec(), 
-// 			vec![ciphertext.capsule.to_vec()], 
+// 			ibe_pp_bytes.to_vec(),
+// 			ciphertext.ciphertext.to_vec(),
+// 			ciphertext.nonce.to_vec(),
+// 			vec![ciphertext.capsule.to_vec()],
 // 			vec![sk.to_vec()],
 // 		).map_err(|_| TimelockError::DecryptionFailed)?;
 // 		Ok(pt)

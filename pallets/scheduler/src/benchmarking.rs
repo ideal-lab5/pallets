@@ -23,7 +23,7 @@ use frame_support::{
 	ensure,
 	traits::{schedule::Priority, BoundedInline, ConstU32},
 };
-use frame_system::{pallet_prelude::BlockNumberFor};
+use frame_system::pallet_prelude::BlockNumberFor;
 use sp_std::{prelude::*, vec};
 
 use crate::Pallet as Scheduler;
@@ -63,7 +63,7 @@ fn fill_schedule_signed<T: Config>(
 	n: u32,
 ) -> Result<(), &'static str> {
 	let t = DispatchTime::At(when);
-	let origin: <T as Config>::PalletsOrigin = 
+	let origin: <T as Config>::PalletsOrigin =
 		frame_system::RawOrigin::Signed(account("origin", 0, SEED)).into();
 	for i in 0..n {
 		let call = make_call::<T>(None);
@@ -74,7 +74,6 @@ fn fill_schedule_signed<T: Config>(
 	ensure!(Agenda::<T>::get(when).len() == n as usize, "didn't fill schedule");
 	Ok(())
 }
-
 
 fn u32_to_name(i: u32) -> TaskName {
 	i.using_encoded(blake2_256)
@@ -101,10 +100,10 @@ fn make_task<T: Config>(
 		maybe_id,
 		priority,
 		maybe_ciphertext: None,
-		maybe_call: Some(call), 
+		maybe_call: Some(call),
 		maybe_periodic,
-		origin, 
-		_phantom: PhantomData
+		origin,
+		_phantom: PhantomData,
 	}
 }
 
@@ -126,11 +125,11 @@ fn make_call<T: Config>(maybe_lookup_len: Option<u32>) -> BoundedCallOf<T> {
 			Some(x) => x,
 			None => {
 				len -= 1;
-				continue
+				continue;
 			},
 		};
 		if c.lookup_needed() == maybe_lookup_len.is_some() {
-			break c
+			break c;
 		}
 		if maybe_lookup_len.is_some() {
 			len += 1;
@@ -138,7 +137,7 @@ fn make_call<T: Config>(maybe_lookup_len: Option<u32>) -> BoundedCallOf<T> {
 			if len > 0 {
 				len -= 1;
 			} else {
-				break c
+				break c;
 			}
 		}
 	}

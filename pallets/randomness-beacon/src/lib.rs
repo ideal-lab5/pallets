@@ -33,8 +33,7 @@ use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use etf_crypto_primitives::encryption::tlock::TLECiphertext;
-use etf_crypto_primitives::utils::interpolate_threshold_bls;
+use etf_crypto_primitives::{encryption::tlock::TLECiphertext, utils::interpolate_threshold_bls};
 
 use sp_consensus_beefy_etf::{known_payloads, Commitment, Payload, ValidatorSetId};
 use w3f_bls::{
@@ -221,8 +220,10 @@ pub mod pallet {
 
 	/// Writes a new block from the randomness beacon into storage if it can be verified
 	///
-	/// * `signatures`: A set of threshold bls signatures (sigma, proof) output from the beacon protocol
-	/// * `block_number`: The block number on which the pulse was generated (required for verification)
+	/// * `signatures`: A set of threshold bls signatures (sigma, proof) output from the beacon
+	///   protocol
+	/// * `block_number`: The block number on which the pulse was generated (required for
+	///   verification)
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]

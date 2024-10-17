@@ -56,7 +56,8 @@ mod tests;
 /// A BEEFY consensus digest item with MMR root hash.
 pub struct DepositBeefyDigest<T>(sp_std::marker::PhantomData<T>);
 
-impl<T> pallet_mmr::primitives::OnNewRoot<sp_consensus_beefy_etf::MmrRootHash> for DepositBeefyDigest<T>
+impl<T> pallet_mmr::primitives::OnNewRoot<sp_consensus_beefy_etf::MmrRootHash>
+	for DepositBeefyDigest<T>
 where
 	T: pallet_mmr::Config<Hashing = sp_consensus_beefy_etf::MmrHashing>,
 	T: pallet_beefy::Config,
@@ -96,8 +97,8 @@ impl Convert<sp_consensus_beefy_etf::bls_crypto::AuthorityId, Vec<u8>> for Beefy
 		// 	.to_eth_address()
 		// 	.map(|v| v.to_vec())
 		// 	.map_err(|_| {
-		// 		log::debug!(target: "runtime::beefy", "Failed to convert BEEFY PublicKey to ETH address!");
-		// 	})
+		// 		log::debug!(target: "runtime::beefy", "Failed to convert BEEFY PublicKey to ETH
+		// address!"); 	})
 		// 	.unwrap_or_default()
 	}
 }
@@ -172,7 +173,8 @@ impl<T: Config> LeafDataProvider for Pallet<T> {
 	}
 }
 
-impl<T> sp_consensus_beefy_etf::OnNewValidatorSet<<T as pallet_beefy::Config>::BeefyId> for Pallet<T>
+impl<T> sp_consensus_beefy_etf::OnNewValidatorSet<<T as pallet_beefy::Config>::BeefyId>
+	for Pallet<T>
 where
 	T: pallet::Config,
 {

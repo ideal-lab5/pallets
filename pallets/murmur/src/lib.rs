@@ -17,9 +17,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 //! # Murmur Pallet
-//!
-//!
-//!
 pub use pallet::*;
 
 #[cfg(test)]
@@ -126,7 +123,6 @@ pub mod pallet {
 		/// * `root`: The MMR root
 		/// * `size`: The size (number of leaves) of the MMR
 		/// * `name`: The name to assign to the murmur proxy
-		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(0)]
 		pub fn create(
@@ -169,10 +165,10 @@ pub mod pallet {
 		/// * `position`: The position in the MMR of the encrypted OTP code
 		/// * `hash`: A hash to commit to the OTP code and call data
 		/// * `ciphertext`: The encrypted OTP code
-		/// * `proof`: A merkle proof that the target leaf is in the expected MMR at the given position
+		/// * `proof`: A merkle proof that the target leaf is in the expected MMR at the given
+		///   position
 		/// * `size`: The size of the Merkle proof
 		/// * `call`: The call to be proxied
-		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(1)]
 		pub fn proxy(
