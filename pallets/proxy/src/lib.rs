@@ -1,19 +1,18 @@
-// This file is part of Substrate.
-
-// Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * Copyright 2024 by Ideal Labs, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 //! # Proxy Pallet
 //! A pallet allowing accounts to give permission to other accounts to dispatch types of calls from
@@ -216,9 +215,9 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_.
 		///
 		/// Parameters:
-		/// - `proxy`: The account that the `caller` would like to make a proxy.
+		/// - `delegate`: The account that the `caller` would like to make a proxy.
 		/// - `proxy_type`: The permissions allowed for this proxy account.
-		/// - `delay`: The announcement period required of the initial proxy. Will generally be
+		/// - `delay`: The announcement period required of the initial proxy.
 		/// zero.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::add_proxy(T::MaxProxies::get()))]
@@ -238,8 +237,9 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_.
 		///
 		/// Parameters:
-		/// - `proxy`: The account that the `caller` would like to remove as a proxy.
+		/// - `delegate`: The account that the `caller` would like to remove as a proxy.
 		/// - `proxy_type`: The permissions currently enabled for the removed proxy account.
+		/// - `delay`: The announcement period required of the initial proxy.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::remove_proxy(T::MaxProxies::get()))]
 		pub fn remove_proxy(
@@ -275,11 +275,12 @@ pub mod pallet {
 		/// - `proxy_type`: The type of the proxy that the sender will be registered as over the
 		/// new account. This will almost always be the most permissive `ProxyType` possible to
 		/// allow for maximum flexibility.
+		/// - `delay`: The announcement period required of the initial proxy. Will generally be
+		/// zero.
 		/// - `index`: A disambiguation index, in case this is called multiple times in the same
 		/// transaction (e.g. with `utility::batch`). Unless you're using `batch` you probably just
 		/// want to use `0`.
-		/// - `delay`: The announcement period required of the initial proxy. Will generally be
-		/// zero.
+		/// - `anonymous`: Whether the account should be anonymous.
 		///
 		/// Fails with `Duplicate` if this has already been called in this transaction, from the
 		/// same sender, with the same parameters.
@@ -300,13 +301,9 @@ pub mod pallet {
 			ensure!(!Proxies::<T>::contains_key(&pure), Error::<T>::Duplicate);
 
 			// if anonymous, then set no delegate
-			let delegate = match anonymous {
-				True => None,
-				False => Some(who.clone())
-			};
+			let delegate = if anonymous { None } else { Some(who.clone()) };
 
-			let proxy_def =
-				ProxyDefinition { delegate: delegate, proxy_type: proxy_type.clone(), delay };
+			let proxy_def = ProxyDefinition { delegate, proxy_type: proxy_type.clone(), delay };
 			let bounded_proxies: BoundedVec<_, T::MaxProxies> =
 				vec![proxy_def].try_into().map_err(|_| Error::<T>::TooMany)?;
 
@@ -333,8 +330,8 @@ pub mod pallet {
 		/// `pure` with corresponding parameters.
 		///
 		/// - `spawner`: The account that originally called `pure` to create this account.
-		/// - `index`: The disambiguation index originally passed to `pure`. Probably `0`.
 		/// - `proxy_type`: The proxy type originally passed to `pure`.
+		/// - `index`: The disambiguation index originally passed to `pure`. Probably `0`.
 		/// - `height`: The height of the chain when the call to `pure` was processed.
 		/// - `ext_index`: The extrinsic index in which the call to `pure` was processed.
 		///
@@ -482,6 +479,7 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_.
 		///
 		/// Parameters:
+		/// - `delegate`: The account that the `caller` would like to make a proxy.
 		/// - `real`: The account that the proxy will make a call on behalf of.
 		/// - `force_proxy_type`: Specify the exact proxy type to be used and checked for this call.
 		/// - `call`: The call to be made by the `real` account.
@@ -509,9 +507,9 @@ pub mod pallet {
 			let call_hash = T::CallHasher::hash_of(&call);
 			let now = system::Pallet::<T>::block_number();
 			Self::edit_announcements(&delegate.clone(), |ann| {
-				ann.real != real ||
-					ann.call_hash != call_hash ||
-					now.saturating_sub(ann.height) < def.delay
+				ann.real != real
+					|| ann.call_hash != call_hash
+					|| now.saturating_sub(ann.height) < def.delay
 			})
 			.map_err(|_| Error::<T>::Unannounced)?;
 
@@ -681,7 +679,7 @@ impl<T: Config> Pallet<T> {
 	/// - `delegator`: The delegator account.
 	/// - `delegatee`: The account that the `delegator` would like to make a proxy.
 	/// - `proxy_type`: The permissions allowed for this proxy account.
-	/// - `delay`: The announcement period required of the initial proxy. Will generally be
+	/// - `delay`: The announcement period required of the initial proxy.
 	/// zero.
 	pub fn remove_proxy_delegate(
 		delegator: &T::AccountId,
@@ -771,8 +769,8 @@ impl<T: Config> Pallet<T> {
 		force_proxy_type: Option<T::ProxyType>,
 	) -> Result<ProxyDefinition<T::AccountId, T::ProxyType, BlockNumberFor<T>>, DispatchError> {
 		let f = |x: &ProxyDefinition<T::AccountId, T::ProxyType, BlockNumberFor<T>>| -> bool {
-			x.delegate.clone() == delegate && 
-				force_proxy_type.as_ref().map_or(true, |y| &x.proxy_type == y)
+			x.delegate.clone() == delegate
+				&& force_proxy_type.as_ref().map_or(true, |y| &x.proxy_type == y)
 		};
 		Ok(Proxies::<T>::get(real).0.into_iter().find(f).ok_or(Error::<T>::NotProxy)?)
 	}
@@ -790,15 +788,19 @@ impl<T: Config> Pallet<T> {
 			match c.is_sub_type() {
 				// Proxy call cannot add or remove a proxy with more permissions than it already
 				// has.
-				Some(Call::add_proxy { ref proxy_type, .. }) |
-				Some(Call::remove_proxy { ref proxy_type, .. })
+				Some(Call::add_proxy { ref proxy_type, .. })
+				| Some(Call::remove_proxy { ref proxy_type, .. })
 					if !def.proxy_type.is_superset(proxy_type) =>
-					false,
+				{
+					false
+				},
 				// Proxy call cannot remove all proxies or kill pure proxies unless it has full
 				// permissions.
 				Some(Call::remove_proxies { .. }) | Some(Call::kill_pure { .. })
 					if def.proxy_type != T::ProxyType::default() =>
-					false,
+				{
+					false
+				},
 				_ => def.proxy_type.filter(c),
 			}
 		});

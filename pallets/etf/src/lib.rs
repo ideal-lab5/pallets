@@ -17,11 +17,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::MaxEncodedLen;
 
-use frame_support::{
-	pallet_prelude::*,
-	traits::Get,
-	BoundedVec, Parameter,
-};
+use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use sp_runtime::traits::Member;
 use sp_std::prelude::*;
 
@@ -62,44 +58,39 @@ pub mod pallet {
 
 	/// publicly verifiable shares for the current round (a resharing)
 	#[pallet::storage]
-	pub type Shares<T: Config> = 
+	pub type Shares<T: Config> =
 		StorageValue<_, BoundedVec<BoundedVec<u8, ConstU32<1024>>, T::MaxAuthorities>, ValueQuery>;
 
 	/// public commitments of the the expected validator to etf pubkey
-	/// assumes order follows the same as the Authorities StorageValue 
+	/// assumes order follows the same as the Authorities StorageValue
 	#[pallet::storage]
-	pub type Commitments<T: Config> = 
+	pub type Commitments<T: Config> =
 		StorageValue<_, BoundedVec<T::BeefyId, T::MaxAuthorities>, ValueQuery>;
 
 	/// the public key for the round (or rounds)
 	#[pallet::storage]
-	pub type RoundPublic<T: Config> = 
-		StorageValue<_, BoundedVec<u8, ConstU32<144>>, ValueQuery>;
+	pub type RoundPublic<T: Config> = StorageValue<_, BoundedVec<u8, ConstU32<144>>, ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		/// (beefy id, commitment, BatchPoK (which technically contains the commitment...))
 		pub genesis_resharing: Vec<(T::BeefyId, Vec<u8>)>,
-		/// the round pubkey is the IBE master secret multiplied by a given group generator (e.g r = sP)
+		/// the round pubkey is the IBE master secret multiplied by a given group generator (e.g r
+		/// = sP)
 		pub round_pubkey: Vec<u8>,
 	}
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { 
-				genesis_resharing: Vec::new(),
-				round_pubkey: Vec::new(),
-			}
+			Self { genesis_resharing: Vec::new(), round_pubkey: Vec::new() }
 		}
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			Pallet::<T>::initialize(
-				&self.genesis_resharing,
-				self.round_pubkey.clone(),
-			).expect("The genesis resharing should be correctly derived");
+			Pallet::<T>::initialize(&self.genesis_resharing, self.round_pubkey.clone())
+				.expect("The genesis resharing should be correctly derived");
 		}
 	}
 
@@ -109,44 +100,37 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
-
-	}
-
+	impl<T: Config> Pallet<T> {}
 }
 
 impl<T: Config> Pallet<T> {
-
 	fn initialize(
 		genesis_resharing: &Vec<(T::BeefyId, Vec<u8>)>,
 		round_key: Vec<u8>,
-	) -> Result<(), ()>  {
-		let bounded_rk =
-			BoundedVec::<u8, ConstU32<144>>::try_from(round_key)
-				.expect("The serialized round key should be 144 bytes.");
+	) -> Result<(), ()> {
+		let bounded_rk = BoundedVec::<u8, ConstU32<144>>::try_from(round_key)
+			.expect("The serialized round key should be 144 bytes.");
 		<RoundPublic<T>>::put(bounded_rk);
 
 		let mut unbounded_shares: Vec<BoundedVec<u8, ConstU32<1024>>> = Vec::new();
-		
+
 		genesis_resharing.iter().for_each(|(_commitment, pok_bytes)| {
-			let bounded_pok =
-				BoundedVec::<u8, ConstU32<1024>>::try_from(pok_bytes.clone())
-					.expect("genesis poks should be well formatted");
+			let bounded_pok = BoundedVec::<u8, ConstU32<1024>>::try_from(pok_bytes.clone())
+				.expect("genesis poks should be well formatted");
 			unbounded_shares.push(bounded_pok);
 		});
-		
+
 		let bounded_shares =
 			BoundedVec::<BoundedVec<u8, ConstU32<1024>>, T::MaxAuthorities>::try_from(
-				unbounded_shares
-			).expect("There should be the correct number of genesis resharings");
+				unbounded_shares,
+			)
+			.expect("There should be the correct number of genesis resharings");
 		<Shares<T>>::put(bounded_shares);
 
-		let bounded_commitments =
-			BoundedVec::<T::BeefyId, T::MaxAuthorities>::try_from(
-				genesis_resharing.iter()
-					.map(|g| g.0.clone())
-					.collect::<Vec<_>>()
-			).map_err(|_| ())?;
+		let bounded_commitments = BoundedVec::<T::BeefyId, T::MaxAuthorities>::try_from(
+			genesis_resharing.iter().map(|g| g.0.clone()).collect::<Vec<_>>(),
+		)
+		.map_err(|_| ())?;
 
 		Commitments::<T>::put(bounded_commitments);
 		Ok(())
@@ -167,7 +151,6 @@ pub trait RoundCommitmentProvider<BeefyId, MaxAuthorities> {
 }
 
 impl<T: Config> RoundCommitmentProvider<T::BeefyId, T::MaxAuthorities> for Pallet<T> {
-
 	fn get() -> BoundedVec<T::BeefyId, T::MaxAuthorities> {
 		Commitments::<T>::get()
 	}

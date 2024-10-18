@@ -143,7 +143,6 @@ pub fn test_generate_equivocation_proof<BN>(
 	EquivocationProof { first, second }
 }
 
-
 /// Create a new `EquivocationProof` based on given arguments.
 pub fn generate_equivocation_proof(
 	vote1: (u64, Payload, ValidatorSetId, &Keyring<bls_crypto::AuthorityId>),

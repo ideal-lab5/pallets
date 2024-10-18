@@ -39,12 +39,12 @@ use sc_client_api::{Backend, BlockBackend, BlockchainEvents, FinalityNotificatio
 use sc_consensus::BlockImport;
 use sc_network::{NetworkRequest, NotificationService, ProtocolName};
 use sc_network_gossip::{GossipEngine, Network as GossipNetwork, Syncing as GossipSyncing};
-use sp_api::{ApiExt, ProvideRuntimeApi};
-use sp_blockchain::{Backend as BlockchainBackend, HeaderBackend};
-use sp_consensus::{Error as ConsensusError, SyncOracle};
 use sc_transaction_pool_api::{
 	LocalTransactionPool, OffchainTransactionPoolFactory, TransactionPool,
 };
+use sp_api::{ApiExt, ProvideRuntimeApi};
+use sp_blockchain::{Backend as BlockchainBackend, HeaderBackend};
+use sp_consensus::{Error as ConsensusError, SyncOracle};
 #[cfg(feature = "bls-experimental")]
 use sp_consensus_beefy_etf::bls_crypto::AuthorityId;
 
@@ -52,10 +52,7 @@ use sp_consensus_beefy_etf::bls_crypto::AuthorityId;
 use sp_consensus_beefy_etf::ecdsa_crypto::AuthorityId;
 
 use sp_consensus_beefy_etf::{
-	BeefyApi, 
-	ConsensusLog, MmrRootHash, 
-	PayloadProvider, ValidatorSet,
-	BEEFY_ENGINE_ID,
+	BeefyApi, ConsensusLog, MmrRootHash, PayloadProvider, ValidatorSet, BEEFY_ENGINE_ID,
 };
 use sp_keystore::KeystorePtr;
 use sp_mmr_primitives::MmrApi;
@@ -386,7 +383,7 @@ where
 					beefy_genesis,
 				)
 				.ok_or_else(|| Error::Backend("Invalid BEEFY chain".into()))?;
-				break state
+				break state;
 			}
 
 			if *header.number() == beefy_genesis {
@@ -409,7 +406,7 @@ where
 					min_block_delta,
 					beefy_genesis,
 				)
-				.ok_or_else(|| Error::Backend("Invalid BEEFY chain".into()))?
+				.ok_or_else(|| Error::Backend("Invalid BEEFY chain".into()))?;
 			}
 
 			if let Some(active) = find_authorities_change::<B>(&header) {
@@ -472,7 +469,7 @@ where
 				);
 				state.init_session_at(new_session_start, validator_set, key_store, metrics);
 			}
-			return Ok(state)
+			return Ok(state);
 		}
 
 		// No valid voter-state persisted, re-initialize from pallet genesis.
@@ -564,7 +561,7 @@ pub async fn start_beefy_gadget<B, BE, C, N, P, R, S>(
 	// 	OffchainTransactionPoolFactory::new(transaction_pool.clone());
 	// runtime.runtime_api().register_extension(offchain_tx_pool_factory
 	// 	.offchain_transaction_pool(<B as Block>::Hash::default())); //TODO
-	
+
 	// We re-create and re-run the worker in this loop in order to quickly reinit and resume after
 	// select recoverable errors.
 	loop {
@@ -619,15 +616,17 @@ pub async fn start_beefy_gadget<B, BE, C, N, P, R, S>(
 			futures::future::Either::Left(((error::Error::ConsensusReset, reuse_comms), _)) => {
 				error!(target: LOG_TARGET, "🥩 Error: {:?}. Restarting voter.", error::Error::ConsensusReset);
 				beefy_comms = reuse_comms;
-				continue
+				continue;
 			},
 			// On other errors, bring down / finish the task.
-			futures::future::Either::Left(((worker_err, _), _)) =>
-				error!(target: LOG_TARGET, "🥩 Error: {:?}. Terminating.", worker_err),
-			futures::future::Either::Right((odj_handler_err, _)) =>
-				error!(target: LOG_TARGET, "🥩 Error: {:?}. Terminating.", odj_handler_err),
+			futures::future::Either::Left(((worker_err, _), _)) => {
+				error!(target: LOG_TARGET, "🥩 Error: {:?}. Terminating.", worker_err)
+			},
+			futures::future::Either::Right((odj_handler_err, _)) => {
+				error!(target: LOG_TARGET, "🥩 Error: {:?}. Terminating.", odj_handler_err)
+			},
 		};
-		return
+		return;
 	}
 }
 
@@ -697,7 +696,7 @@ where
 					"🥩 BEEFY pallet available: block {:?} beefy genesis {:?}",
 					notif.header.number(), start
 				);
-				return Ok((start, notif.header))
+				return Ok((start, notif.header));
 			}
 		}
 	}
@@ -732,16 +731,17 @@ where
 	loop {
 		debug!(target: LOG_TARGET, "🥩 Looking for auth set change at block number: {:?}", *header.number());
 		if let Ok(Some(active)) = runtime.runtime_api().validator_set(header.hash()) {
-			return Ok(active)
+			return Ok(active);
 		} else {
 			match find_authorities_change::<B>(&header) {
 				Some(active) => return Ok(active),
 				// Move up the chain. Ultimately we'll get it from chain genesis state, or error out
 				// there.
-				None =>
+				None => {
 					header = wait_for_parent_header(blockchain, header, HEADER_SYNC_DELAY)
 						.await
-						.map_err(|e| Error::Backend(e.to_string()))?,
+						.map_err(|e| Error::Backend(e.to_string()))?
+				},
 			}
 		}
 	}

@@ -1,13 +1,13 @@
 [package]
 name = "pallet-murmur"
-version = "1.0.0-dev"
+version = "0.1.0-dev"
 description = "FRAME pallet to create and execute murmur wallets"
-authors = ["Ideal Labs <https://github.com/ideal-lab5>"]
-homepage = "https://idealabs.network"
-edition = "2021"
-license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 publish = false
-repository = "https://github.com/ideal-lab5/pallets/"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

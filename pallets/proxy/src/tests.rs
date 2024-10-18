@@ -1,19 +1,18 @@
-// This file is part of Substrate.
-
-// Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * Copyright 2024 by Ideal Labs, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 // Tests for Proxy Pallet
 
@@ -534,7 +533,7 @@ fn proxying_works() {
 fn pure_works() {
 	new_test_ext().execute_with(|| {
 		Balances::make_free_balance_be(&1, 11); // An extra one for the ED.
-		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 0));
+		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 0, false));
 		let anon = Proxy::pure_account(&1, &ProxyType::Any, 0, None);
 		System::assert_last_event(
 			ProxyEvent::PureCreated {
@@ -547,19 +546,25 @@ fn pure_works() {
 		);
 
 		// other calls to pure allowed as long as they're not exactly the same.
-		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::JustTransfer, 0, 0));
-		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 1));
+		assert_ok!(Proxy::create_pure(
+			RuntimeOrigin::signed(1),
+			ProxyType::JustTransfer,
+			0,
+			0,
+			false
+		));
+		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 1, false));
 		let anon2 = Proxy::pure_account(&2, &ProxyType::Any, 0, None);
-		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(2), ProxyType::Any, 0, 0));
+		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(2), ProxyType::Any, 0, 0, false));
 		assert_noop!(
-			Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 0),
+			Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 0, false),
 			Error::<Test>::Duplicate
 		);
 		System::set_extrinsic_index(1);
-		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 0));
+		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 0, false));
 		System::set_extrinsic_index(0);
 		System::set_block_number(2);
-		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 0));
+		assert_ok!(Proxy::create_pure(RuntimeOrigin::signed(1), ProxyType::Any, 0, 0, false));
 
 		let call = Box::new(call_transfer(6, 1));
 		assert_ok!(Balances::transfer_allow_death(RuntimeOrigin::signed(3), anon, 5));

@@ -17,48 +17,38 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::MaxEncodedLen;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use frame_support::{
+	dispatch::{DispatchResultWithPostInfo, Pays},
 	pallet_prelude::*,
 	traits::{Get, Randomness},
 	BoundedVec,
-	dispatch::{DispatchResultWithPostInfo, Pays},
 };
 
+use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 use sp_std::prelude::*;
-use frame_system::{
-	pallet_prelude::*,
-	offchain::SendTransactionTypes,
-};
-
-use sp_staking::{offence::OffenceReportSystem, SessionIndex};
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use etf_crypto_primitives::utils::interpolate_threshold_bls;
-use etf_crypto_primitives::{
-	encryption::tlock::TLECiphertext,
+use etf_crypto_primitives::{encryption::tlock::TLECiphertext, utils::interpolate_threshold_bls};
+
+use sp_consensus_beefy_etf::{known_payloads, Commitment, Payload, ValidatorSetId};
+use w3f_bls::{
+	DoublePublicKey, DoubleSignature, EngineBLS, Message, SerializableToBytes, TinyBLS377,
 };
 
-use sp_session::{GetSessionNumber, GetValidatorCount};
-use w3f_bls::{DoublePublicKey, DoubleSignature, EngineBLS, Message, SerializableToBytes, TinyBLS377};
-use sp_consensus_beefy_etf::{
-	Commitment, ValidatorSetId, Payload, known_payloads, BeefyAuthorityId,
-};
-
+use log::{error, info};
+use sha3::{Digest, Sha3_512};
 use sp_runtime::{
+	traits::Hash,
 	transaction_validity::{
 		InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
-		TransactionValidityError, ValidTransaction,
+		ValidTransaction,
 	},
-	DispatchError, KeyTypeId, Perbill, RuntimeAppPublic,
-	traits::Hash,
 };
-use sha3::{Digest, Sha3_512};
-use log::{info, debug, error};
 
 #[cfg(test)]
 mod mock;
@@ -72,31 +62,60 @@ const LOG_TARGET: &str = "runtime::randomness-beacon";
 pub type OpaqueSignature = BoundedVec<u8, ConstU32<48>>;
 
 #[derive(
-	Default, Clone, Eq, PartialEq, RuntimeDebugNoBound, 
-	Encode, Decode, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
+	Default,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebugNoBound,
+	Encode,
+	Decode,
+	TypeInfo,
+	MaxEncodedLen,
+	Serialize,
+	Deserialize,
+)]
 pub struct PulseHeader<BN: core::fmt::Debug> {
 	pub block_number: BN,
 	// pub hash_prev: BoundedVec<u8, ConstU32<64>>
 }
 
 #[derive(
-	Default, Clone, Eq, PartialEq, RuntimeDebugNoBound, 
-	Encode, Decode, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
+	Default,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebugNoBound,
+	Encode,
+	Decode,
+	TypeInfo,
+	MaxEncodedLen,
+	Serialize,
+	Deserialize,
+)]
 pub struct PulseBody {
 	pub signature: BoundedVec<u8, ConstU32<48>>,
 	pub randomness: BoundedVec<u8, ConstU32<64>>,
 }
 
 #[derive(
-	Default, Clone, Eq, PartialEq, RuntimeDebugNoBound, 
-	Encode, Decode, TypeInfo, MaxEncodedLen, Serialize, Deserialize)]
+	Default,
+	Clone,
+	Eq,
+	PartialEq,
+	RuntimeDebugNoBound,
+	Encode,
+	Decode,
+	TypeInfo,
+	MaxEncodedLen,
+	Serialize,
+	Deserialize,
+)]
 pub struct Pulse<BN: core::fmt::Debug> {
 	header: PulseHeader<BN>,
-	body: PulseBody,	
+	body: PulseBody,
 }
 
 impl<BN: core::fmt::Debug> Pulse<BN> {
-
 	// builds the next pulse from a previous one
 	pub fn build_next(
 		signature: OpaqueSignature,
@@ -115,15 +134,9 @@ impl<BN: core::fmt::Debug> Pulse<BN> {
 			// hash_prev: bounded_hash
 		};
 
-		let body = PulseBody {
-			signature,
-			randomness: bounded_rand,
-		};
+		let body = PulseBody { signature, randomness: bounded_rand };
 
-		Pulse {
-			header,
-			body,
-		}
+		Pulse { header, body }
 	}
 }
 
@@ -132,13 +145,15 @@ pub mod pallet {
 	use super::*;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> + pallet_etf::Config {
+	pub trait Config:
+		frame_system::Config + SendTransactionTypes<Call<Self>> + pallet_etf::Config
+	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// The maximum number of pulses to store in runtime storage
 		#[pallet::constant]
 		type MaxPulses: Get<u32>;
-		
+
 		// TODO
 		// /// Weights for this pallet.
 		// type WeightInfo: WeightInfo;
@@ -152,16 +167,11 @@ pub mod pallet {
 			Self::validate_unsigned(source, call)
 		}
 	}
-	
+
 	/// the chain of randomness
 	#[pallet::storage]
-	pub type Pulses<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		BlockNumberFor<T>,
-		Pulse<BlockNumberFor<T>>,
-		OptionQuery,
-	>;
+	pub type Pulses<T: Config> =
+		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, Pulse<BlockNumberFor<T>>, OptionQuery>;
 
 	/// the highest block number for which we have encoded a pulse
 	#[pallet::storage]
@@ -177,18 +187,15 @@ pub mod pallet {
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { 
-				genesis_pulse: Pulse::default(),
-			}
+			Self { genesis_pulse: Pulse::default() }
 		}
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			Pallet::<T>::initialize(
-				&self.genesis_pulse
-			).expect("The genesis pulse must be well formatted.");
+			Pallet::<T>::initialize(&self.genesis_pulse)
+				.expect("The genesis pulse must be well formatted.");
 		}
 	}
 
@@ -213,8 +220,10 @@ pub mod pallet {
 
 	/// Writes a new block from the randomness beacon into storage if it can be verified
 	///
-	/// * `signatures`: A set of threshold bls signatures (sigma, proof) output from the beacon protocol
-	/// * `block_number`: The block number on which the pulse was generated (required for verification)
+	/// * `signatures`: A set of threshold bls signatures (sigma, proof) output from the beacon
+	///   protocol
+	/// * `block_number`: The block number on which the pulse was generated (required for
+	///   verification)
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
@@ -226,16 +235,10 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 			let round_pk_bytes: Vec<u8> = <pallet_etf::Pallet<T>>::round_pubkey().to_vec();
-			let rk = DoublePublicKey::<TinyBLS377>::deserialize_compressed(
-				&round_pk_bytes[..]
-			).unwrap();
-			let validator_set_id = 0;//<pallet_beefy::Pallet<T>>::validator_set_id();
-			let _ = Self::try_add_pulse(
-				signatures, 
-				block_number, 
-				rk, 
-				validator_set_id
-			)?;
+			let rk =
+				DoublePublicKey::<TinyBLS377>::deserialize_compressed(&round_pk_bytes[..]).unwrap();
+			let validator_set_id = 0; //<pallet_beefy::Pallet<T>>::validator_set_id();
+			let _ = Self::try_add_pulse(signatures, block_number, rk, validator_set_id)?;
 
 			Height::<T>::set(block_number);
 			Self::deposit_event(Event::PulseStored);
@@ -247,9 +250,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	/// initialize the genesis state for this pallet
-	fn initialize(
-		genesis_pulse: &Pulse<BlockNumberFor<T>>,
-	) -> Result<(), Error<T>> {
+	fn initialize(genesis_pulse: &Pulse<BlockNumberFor<T>>) -> Result<(), Error<T>> {
 		let current_block = <frame_system::Pallet<T>>::block_number();
 		<Pulses<T>>::insert(current_block, genesis_pulse);
 		Ok(())
@@ -259,30 +260,22 @@ impl<T: Config> Pallet<T> {
 	fn try_add_pulse(
 		raw_signatures: Vec<Vec<u8>>,
 		block_number: BlockNumberFor<T>,
-		rk: DoublePublicKey<TinyBLS377>,
+		_rk: DoublePublicKey<TinyBLS377>,
 		validator_set_id: ValidatorSetId,
 	) -> Result<(), Error<T>> {
-		let payload = Payload::from_single_entry(
-			known_payloads::ETF_SIGNATURE, 
-			Vec::new()
-		);
-		let commitment = Commitment { 
-			payload, 
-			block_number, 
-			validator_set_id,
-		};
+		let payload = Payload::from_single_entry(known_payloads::ETF_SIGNATURE, Vec::new());
+		let commitment = Commitment { payload, block_number, validator_set_id };
 
 		// // TODO: error handling
 		let mut good_sigs = Vec::new();
 		raw_signatures.iter().enumerate().for_each(|(idx, rs)| {
 			let etf_pk = <pallet_etf::Pallet<T>>::commitments()[idx].encode();
-			let pk = DoublePublicKey::<TinyBLS377>::deserialize_compressed(
-				&etf_pk[..]
-			).unwrap();
+			let pk = DoublePublicKey::<TinyBLS377>::deserialize_compressed(&etf_pk[..]).unwrap();
 
-			if let Ok(sig) = DoubleSignature::<TinyBLS377>::from_bytes(&rs) {	
+			if let Ok(sig) = DoubleSignature::<TinyBLS377>::from_bytes(&rs) {
 				if sig.verify(&Message::new(b"", &commitment.encode()), &pk) {
-					good_sigs.push((<TinyBLS377 as EngineBLS>::Scalar::from((idx as u8) + 1), sig.0));
+					good_sigs
+						.push((<TinyBLS377 as EngineBLS>::Scalar::from((idx as u8) + 1), sig.0));
 				}
 			}
 		});
@@ -290,13 +283,12 @@ impl<T: Config> Pallet<T> {
 		let sig = interpolate_threshold_bls::<TinyBLS377>(good_sigs);
 		let mut bytes = Vec::new();
 		sig.serialize_compressed(&mut bytes).unwrap();
-		let bounded_sig = 
-			BoundedVec::<u8, ConstU32<48>>::try_from(bytes)
-				.map_err(|_| Error::<T>::InvalidSignature)?;
+		let bounded_sig = BoundedVec::<u8, ConstU32<48>>::try_from(bytes)
+			.map_err(|_| Error::<T>::InvalidSignature)?;
 
 		let pulse = Pulse::build_next(
-			bounded_sig, 
-			block_number, 
+			bounded_sig,
+			block_number,
 			// last_pulse
 		);
 
@@ -314,7 +306,7 @@ impl<T: Config> Pallet<T> {
 
 	/// validate an unsigned transaction sent to this module
 	pub fn validate_unsigned(source: TransactionSource, call: &Call<T>) -> TransactionValidity {
-		if let Call::write_pulse { signatures, block_number } = call {
+		if let Call::write_pulse { signatures: _, block_number: _ } = call {
 			// discard pulses not coming from the local node
 			match source {
 				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ },
@@ -323,14 +315,14 @@ impl<T: Config> Pallet<T> {
 						target: LOG_TARGET,
 						"rejecting unsigned beacon pulse because it is not local/in-block."
 					);
-					return InvalidTransaction::Call.into()
+					return InvalidTransaction::Call.into();
 				},
 			}
 
 			ValidTransaction::with_tag_prefix("RandomnessBeacon")
 				// We assign the maximum priority for any equivocation report.
 				.priority(TransactionPriority::MAX)
-				.longevity(3) 
+				.longevity(3)
 				// We don't propagate this. This can never be included on a remote node.
 				.propagate(false)
 				.build()
@@ -340,15 +332,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// submit an unsigned transaction to write a new pulse into storage
-	pub fn publish_pulse(
-		signatures: Vec<Vec<u8>>, 
-		block_number: BlockNumberFor<T>,
-	) -> Option<()> {
-		use frame_system::offchain::{Signer, SubmitTransaction};
-		let call = Call::write_pulse {
-			signatures,
-			block_number,
-		};
+	pub fn publish_pulse(signatures: Vec<Vec<u8>>, block_number: BlockNumberFor<T>) -> Option<()> {
+		use frame_system::offchain::SubmitTransaction;
+		let call = Call::write_pulse { signatures, block_number };
 		let res = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 
 		match res {
@@ -382,10 +368,7 @@ pub struct Ciphertext {
 /// provides timelock encryption using the current slot
 pub trait TimelockEncryptionProvider<BN> {
 	/// attempt to decrypt the ciphertext with the current slot secret
-	fn decrypt_at(
-		ciphertext: &[u8], 
-		block_number: BN
-	) -> Result<DecryptionResult, TimelockError>;
+	fn decrypt_at(ciphertext: &[u8], block_number: BN) -> Result<DecryptionResult, TimelockError>;
 
 	/// get the latest block number for which randomness is known
 	fn latest() -> BN;
@@ -395,25 +378,25 @@ pub trait TimelockEncryptionProvider<BN> {
 // use w3f_bls::{EngineBLS};
 use etf_crypto_primitives::encryption::tlock::DecryptionResult;
 
-impl<T:Config> TimelockEncryptionProvider<BlockNumberFor<T>> for Pallet<T> {
+impl<T: Config> TimelockEncryptionProvider<BlockNumberFor<T>> for Pallet<T> {
 	fn decrypt_at(
-		ciphertext_bytes: &[u8], 
-		block_number: BlockNumberFor<T>
+		ciphertext_bytes: &[u8],
+		block_number: BlockNumberFor<T>,
 	) -> Result<DecryptionResult, TimelockError> {
 		if let Some(secret) = Pulses::<T>::get(block_number) {
-			let pk = <pallet_etf::Pallet<T>>::round_pubkey();
+			// let pk = <pallet_etf::Pallet<T>>::round_pubkey();
 			// TODO: replace with optimized arkworks types?
-			let ciphertext:TLECiphertext<TinyBLS377> = 
+			let ciphertext: TLECiphertext<TinyBLS377> =
 				TLECiphertext::deserialize_compressed(ciphertext_bytes)
 					.map_err(|_| TimelockError::DecodeFailure)?;
 
-			let sig: <TinyBLS377 as EngineBLS>::SignatureGroup = 
+			let sig: <TinyBLS377 as EngineBLS>::SignatureGroup =
 				<TinyBLS377 as EngineBLS>::SignatureGroup::deserialize_compressed(
-					&secret.body.signature.to_vec()[..]
-				).map_err(|_| TimelockError::DecodeFailure)?;
+					&secret.body.signature.to_vec()[..],
+				)
+				.map_err(|_| TimelockError::DecodeFailure)?;
 
-			let plaintext = ciphertext.tld(sig)
-				.map_err(|_| TimelockError::DecryptionFailed)?;
+			let plaintext = ciphertext.tld(sig).map_err(|_| TimelockError::DecryptionFailed)?;
 
 			return Ok(plaintext);
 		}
@@ -421,12 +404,11 @@ impl<T:Config> TimelockEncryptionProvider<BlockNumberFor<T>> for Pallet<T> {
 	}
 
 	fn latest() -> BlockNumberFor<T> {
-		return Height::<T>::get()
+		return Height::<T>::get();
 	}
 }
 
 // use frame_support::StorageHasher;
-
 
 impl<T: Config> Randomness<T::Hash, BlockNumberFor<T>> for Pallet<T> {
 	// this function hashes together the subject with the latest known randomness
@@ -435,8 +417,8 @@ impl<T: Config> Randomness<T::Hash, BlockNumberFor<T>> for Pallet<T> {
 
 		let mut entropy = T::Hash::default();
 		if let Some(pulse) = Pulses::<T>::get(height) {
-			entropy = (subject, height, pulse.body.randomness.clone())
-				.using_encoded(T::Hashing::hash);
+			entropy =
+				(subject, height, pulse.body.randomness.clone()).using_encoded(T::Hashing::hash);
 		}
 
 		(entropy, height)

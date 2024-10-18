@@ -26,9 +26,7 @@ use sp_consensus_beefy_etf::bls_crypto::{AuthorityId, Signature};
 #[cfg(not(feature = "bls-experimental"))]
 use sp_consensus_beefy_etf::ecdsa_crypto::{AuthorityId, Signature};
 
-use sp_consensus_beefy_etf::{
-	ValidatorSet, ValidatorSetId, VersionedFinalityProof,
-};
+use sp_consensus_beefy_etf::{ValidatorSet, ValidatorSetId, VersionedFinalityProof};
 use sp_runtime::traits::{Block as BlockT, NumberFor};
 
 /// A finality proof with matching BEEFY authorities' signatures.
@@ -38,8 +36,9 @@ pub(crate) fn proof_block_num_and_set_id<Block: BlockT>(
 	proof: &BeefyVersionedFinalityProof<Block>,
 ) -> (NumberFor<Block>, ValidatorSetId) {
 	match proof {
-		VersionedFinalityProof::V1(sc) =>
-			(sc.commitment.block_number, sc.commitment.validator_set_id),
+		VersionedFinalityProof::V1(sc) => {
+			(sc.commitment.block_number, sc.commitment.validator_set_id)
+		},
 	}
 }
 
@@ -64,11 +63,11 @@ pub(crate) fn verify_with_validator_set<Block: BlockT>(
 	let mut signatures_checked = 0u32;
 	match proof {
 		VersionedFinalityProof::V1(signed_commitment) => {
-			if signed_commitment.signatures.len() != validator_set.len() ||
-				signed_commitment.commitment.validator_set_id != validator_set.id() ||
-				signed_commitment.commitment.block_number != target_number
+			if signed_commitment.signatures.len() != validator_set.len()
+				|| signed_commitment.commitment.validator_set_id != validator_set.id()
+				|| signed_commitment.commitment.block_number != target_number
 			{
-				return Err((ConsensusError::InvalidJustification, 0))
+				return Err((ConsensusError::InvalidJustification, 0));
 			}
 
 			// Arrangement of signatures in the commitment should be in the same order
@@ -107,11 +106,11 @@ pub(crate) fn verify_with_validator_set<Block: BlockT>(
 	let mut signatures_checked = 0u32;
 	match proof {
 		VersionedFinalityProof::V1(signed_commitment) => {
-			if signed_commitment.signatures.len() != validator_set.len() ||
-				signed_commitment.commitment.validator_set_id != validator_set.id() ||
-				signed_commitment.commitment.block_number != target_number
+			if signed_commitment.signatures.len() != validator_set.len()
+				|| signed_commitment.commitment.validator_set_id != validator_set.id()
+				|| signed_commitment.commitment.block_number != target_number
 			{
-				return Err((ConsensusError::InvalidJustification, 0))
+				return Err((ConsensusError::InvalidJustification, 0));
 			}
 
 			// Arrangement of signatures in the commitment should be in the same order
@@ -169,7 +168,8 @@ pub(crate) mod tests {
 	#[test]
 	fn should_verify_with_validator_set() {
 		let keys = &[Keyring::Alice, Keyring::Bob, Keyring::Charlie];
-		let validator_set = ValidatorSet::new(make_beefy_ids(keys), make_beefy_ids(keys), 0).unwrap();
+		let validator_set =
+			ValidatorSet::new(make_beefy_ids(keys), make_beefy_ids(keys), 0).unwrap();
 
 		// build valid justification
 		let block_num = 42;
@@ -235,7 +235,8 @@ pub(crate) mod tests {
 	#[test]
 	fn should_decode_and_verify_finality_proof() {
 		let keys = &[Keyring::Alice, Keyring::Bob];
-		let validator_set = ValidatorSet::new(make_beefy_ids(keys), make_beefy_ids(keys), 0).unwrap();
+		let validator_set =
+			ValidatorSet::new(make_beefy_ids(keys), make_beefy_ids(keys), 0).unwrap();
 		let block_num = 1;
 
 		// build valid justification

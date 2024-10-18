@@ -188,15 +188,9 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<(u64, BeefyId)>) -> TestExt
 		}
 	});
 
-	let genesis_resharing = authorities
-		.iter()
-		.map(|(_idx, id)| (id.clone(), vec![2]))
-		.collect();
+	let genesis_resharing = authorities.iter().map(|(_idx, id)| (id.clone(), vec![2])).collect();
 
-	pallet_etf::GenesisConfig::<Test> { 
-		genesis_resharing: genesis_resharing,
-		round_pubkey: vec![1]
-	}
+	pallet_etf::GenesisConfig::<Test> { genesis_resharing, round_pubkey: vec![1] }
 		.assimilate_storage(&mut t)
 		.unwrap();
 

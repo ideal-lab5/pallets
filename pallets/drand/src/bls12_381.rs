@@ -2,8 +2,8 @@ use crate::utils::ScalarFieldFor;
 use ark_bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, short_weierstrass::SWCurveConfig, AffineRepr};
 use sp_ark_bls12_381::{
-	Bls12_381 as Bls12_381Opt, G1Affine as G1AffineOpt,
-	G1Projective as G1ProjectiveOpt, G2Affine as G2AffineOpt, G2Projective as G2ProjectiveOpt,
+	Bls12_381 as Bls12_381Opt, G1Affine as G1AffineOpt, G1Projective as G1ProjectiveOpt,
+	G2Affine as G2AffineOpt, G2Projective as G2ProjectiveOpt,
 };
 
 #[inline]

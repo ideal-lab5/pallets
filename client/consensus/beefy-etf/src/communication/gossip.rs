@@ -23,11 +23,10 @@ use sc_network_gossip::{MessageIntent, ValidationResult, Validator, ValidatorCon
 use sp_runtime::traits::{Block, Hash, Header, NumberFor};
 
 use codec::{Decode, DecodeAll, Encode};
-use log::{debug, trace, info};
+use log::{debug, info, trace};
 use parking_lot::{Mutex, RwLock};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use wasm_timer::Instant;
-
 
 use crate::{
 	communication::{
@@ -47,9 +46,7 @@ use sp_consensus_beefy_etf::bls_crypto::{AuthorityId, Signature};
 #[cfg(not(feature = "bls-experimental"))]
 use sp_consensus_beefy_etf::ecdsa_crypto::{AuthorityId, Signature};
 
-use sp_consensus_beefy_etf::{
-	ValidatorSet, ValidatorSetId, VoteMessage,
-};
+use sp_consensus_beefy_etf::{ValidatorSet, ValidatorSetId, VoteMessage};
 
 // Timeout for rebroadcasting messages.
 #[cfg(not(test))]
@@ -159,12 +156,13 @@ impl<B: Block> Filter<B> {
 				f.start = cfg.start;
 				f.end = cfg.end;
 			},
-			_ =>
+			_ => {
 				self.inner = Some(FilterInner {
 					start: cfg.start,
 					end: cfg.end,
 					validator_set: cfg.validator_set.clone(),
-				}),
+				})
+			},
 		}
 	}
 
@@ -307,15 +305,15 @@ where
 				.unwrap_or(false)
 			{
 				debug!(target: LOG_TARGET, "Message from voter not in validator set: {}", vote.id);
-				return Action::Discard(cost::UNKNOWN_VOTER)
+				return Action::Discard(cost::UNKNOWN_VOTER);
 			}
 		}
 
 		if BeefyKeystore::verify(&vote.id, &vote.signature, &vote.commitment.encode()) {
-				info!(
-					target: LOG_TARGET,
-					"🎲 The etf signature was verified",
-				);
+			info!(
+				target: LOG_TARGET,
+				"🎲 The etf signature was verified",
+			);
 			Action::Keep(self.votes_topic, benefit::VOTE_MESSAGE)
 		} else {
 			debug!(
@@ -348,7 +346,7 @@ where
 			}
 
 			if guard.is_already_proven(round) {
-				return Action::Discard(benefit::NOT_INTERESTED)
+				return Action::Discard(benefit::NOT_INTERESTED);
 			}
 
 			// Verify justification signatures.
@@ -466,7 +464,7 @@ where
 		let filter = self.gossip_filter.read();
 		Box::new(move |_who, intent, _topic, mut data| {
 			if let MessageIntent::PeriodicRebroadcast = intent {
-				return do_rebroadcast
+				return do_rebroadcast;
 			}
 
 			match GossipMessage::<B>::decode_all(&mut data) {
@@ -570,7 +568,8 @@ pub(crate) mod tests {
 	#[test]
 	fn should_validate_messages() {
 		let keys = vec![Keyring::<AuthorityId>::Alice.public()];
-		let validator_set = ValidatorSet::<AuthorityId>::new(keys.clone(), keys.clone(), 0).unwrap();
+		let validator_set =
+			ValidatorSet::<AuthorityId>::new(keys.clone(), keys.clone(), 0).unwrap();
 		let (gv, mut report_stream) =
 			GossipValidator::<Block>::new(Arc::new(Mutex::new(KnownPeers::new())));
 		let sender = PeerId::random();
@@ -670,8 +669,12 @@ pub(crate) mod tests {
 		assert_eq!(report_stream.try_recv().unwrap(), expected_report);
 
 		// reject proof, bad signatures (Bob instead of Alice)
-		let bad_validator_set =
-			ValidatorSet::<AuthorityId>::new(vec![Keyring::Bob.public()], vec![Keyring::Bob.public()], 0).unwrap();
+		let bad_validator_set = ValidatorSet::<AuthorityId>::new(
+			vec![Keyring::Bob.public()],
+			vec![Keyring::Bob.public()],
+			0,
+		)
+		.unwrap();
 		let proof = dummy_proof(21, &bad_validator_set);
 		let encoded_proof = GossipMessage::<Block>::FinalityProof(proof).encode();
 		let res = gv.validate(&mut context, &sender, &encoded_proof);
@@ -684,7 +687,8 @@ pub(crate) mod tests {
 	#[test]
 	fn messages_allowed_and_expired() {
 		let keys = vec![Keyring::Alice.public()];
-		let validator_set = ValidatorSet::<AuthorityId>::new(keys.clone(), keys.clone(), 0).unwrap();
+		let validator_set =
+			ValidatorSet::<AuthorityId>::new(keys.clone(), keys.clone(), 0).unwrap();
 		let (gv, _) = GossipValidator::<Block>::new(Arc::new(Mutex::new(KnownPeers::new())));
 		gv.update_filter(GossipFilterCfg { start: 0, end: 10, validator_set: &validator_set });
 		let sender = sc_network::PeerId::random();
@@ -720,7 +724,8 @@ pub(crate) mod tests {
 		assert!(allowed(&sender, intent, &topic, &mut encoded_proof));
 		assert!(!expired(topic, &mut encoded_proof));
 		// using wrong set_id -> !allowed, expired
-		let bad_validator_set = ValidatorSet::<AuthorityId>::new(keys.clone(), keys.clone(), 1).unwrap();
+		let bad_validator_set =
+			ValidatorSet::<AuthorityId>::new(keys.clone(), keys.clone(), 1).unwrap();
 		let proof = dummy_proof(2, &bad_validator_set);
 		let mut encoded_proof = GossipMessage::<Block>::FinalityProof(proof).encode();
 		assert!(!allowed(&sender, intent, &topic, &mut encoded_proof));
@@ -761,7 +766,8 @@ pub(crate) mod tests {
 	#[test]
 	fn messages_rebroadcast() {
 		let keys = vec![Keyring::Alice.public()];
-		let validator_set = ValidatorSet::<AuthorityId>::new(keys.clone(), keys.clone(), 0).unwrap();
+		let validator_set =
+			ValidatorSet::<AuthorityId>::new(keys.clone(), keys.clone(), 0).unwrap();
 		let (gv, _) = GossipValidator::<Block>::new(Arc::new(Mutex::new(KnownPeers::new())));
 		gv.update_filter(GossipFilterCfg { start: 0, end: 10, validator_set: &validator_set });
 		let sender = sc_network::PeerId::random();

@@ -17,29 +17,27 @@
 use super::*;
 use std::vec;
 
+use crate as pallet_murmur;
 use codec::Encode;
+use etf_crypto_primitives::encryption::tlock::DecryptionResult;
 use frame_support::{
 	construct_runtime, derive_impl, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64, Contains, InstanceFilter},
+	traits::{ConstU128, ConstU32, ConstU64, InstanceFilter},
 };
-use frame_system::Call as SystemCall;
-use sp_consensus_beefy_etf::{mmr::MmrLeafVersion, test_utils::etf_genesis};
+use murmur_test_utils::BOTPGenerator;
+use sha3::Digest;
+use sp_consensus_beefy_etf::mmr::MmrLeafVersion;
 use sp_core::Pair;
 use sp_io::TestExternalities;
 use sp_runtime::{
-	app_crypto::bls377::Public,
 	impl_opaque_keys,
 	testing::TestXt,
 	traits::{BlakeTwo256, ConvertInto, Keccak256, OpaqueKeys},
 	BuildStorage,
 };
-use murmur_test_utils::BOTPGenerator;
 use sp_state_machine::BasicExternalities;
-use etf_crypto_primitives::encryption::tlock::DecryptionResult;
-use sha3::Digest;
-use crate as pallet_murmur;
 
-pub use sp_consensus_beefy_etf::{bls_crypto::AuthorityId as BeefyId, mmr::BeefyDataProvider};
+pub use sp_consensus_beefy_etf::bls_crypto::AuthorityId as BeefyId;
 
 impl_opaque_keys! {
 	pub struct MockSessionKeys {
@@ -91,13 +89,6 @@ impl pallet_session::Config for Test {
 	type WeightInfo = ();
 }
 
-// pub type MmrLeaf = sp_consensus_beefy_etf::mmr::MmrLeaf<
-// 	frame_system::pallet_prelude::BlockNumberFor<Test>,
-// 	<Test as frame_system::Config>::Hash,
-// 	pallet_beefy_mmr::MerkleRootOf<Test>,
-// 	Vec<u8>,
-// >;
-
 impl pallet_mmr::Config for Test {
 	const INDEXING_PREFIX: &'static [u8] = b"mmr";
 	type Hashing = Keccak256;
@@ -138,22 +129,9 @@ impl pallet_beefy_mmr_etf::Config for Test {
 	type BeefyDataProvider = ();
 }
 
-pub struct DummyDataProvider;
-impl BeefyDataProvider<Vec<u8>> for DummyDataProvider {
-	fn extra_data() -> Vec<u8> {
-		let mut col = vec![(15, vec![1, 2, 3]), (5, vec![4, 5, 6])];
-		col.sort();
-		binary_merkle_tree::merkle_root::<<Test as pallet_mmr::Config>::Hashing, _>(
-			col.into_iter().map(|pair| pair.encode()),
-		)
-		.as_ref()
-		.to_vec()
-	}
-}
-
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
-	type MaxReserves = ();  
+	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
 	type Balance = u128;
 	type DustRemoval = ();
@@ -174,8 +152,10 @@ impl pallet_randomness_beacon::Config for Test {
 
 pub struct DummyTlockProvider;
 impl TimelockEncryptionProvider<u64> for DummyTlockProvider {
-
-	fn decrypt_at(bytes: &[u8], when: u64) -> Result<DecryptionResult, pallet_randomness_beacon::TimelockError> {
+	fn decrypt_at(
+		_bytes: &[u8],
+		when: u64,
+	) -> Result<DecryptionResult, pallet_randomness_beacon::TimelockError> {
 		let seed = b"seed".to_vec();
 		let mut hasher = sha3::Sha3_256::default();
 		hasher.update(seed);
@@ -183,10 +163,7 @@ impl TimelockEncryptionProvider<u64> for DummyTlockProvider {
 		let generator = BOTPGenerator::new(hash.to_vec());
 		let otp_code = generator.generate(when as u32);
 
-		Ok(DecryptionResult {
-			message: otp_code.as_bytes().to_vec(),
-			secret: [0;32],
-		})
+		Ok(DecryptionResult { message: otp_code.as_bytes().to_vec(), secret: [0; 32] })
 	}
 
 	fn latest() -> u64 {
@@ -236,17 +213,6 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 	}
 	fn is_superset(&self, o: &Self) -> bool {
 		self == &ProxyType::Any || self == o
-	}
-}
-pub struct BaseFilter;
-impl Contains<RuntimeCall> for BaseFilter {
-	fn contains(c: &RuntimeCall) -> bool {
-		match *c {
-			// Remark is used as a no-op call in the benchmarking
-			RuntimeCall::System(SystemCall::remark { .. }) => true,
-			RuntimeCall::System(_) => false,
-			_ => true,
-		}
 	}
 }
 
@@ -319,16 +285,24 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<(u64, BeefyId)>) -> TestExt
 		}
 	});
 
-	let (round_pubkey, genesis_resharing) = etf_genesis::<w3f_bls::TinyBLS377>(
-		authorities.iter().map(|(_, id)| id.clone()).collect::<Vec<_>>(),
-	);
+	// mock the genesis config
+	let genesis_resharing: Vec<(sp_consensus_beefy_etf::bls_crypto::Public, Vec<u8>)> =
+		vec![(mock_beefy_id(123), [1u8; 32].into())];
+	let round_pubkey = [
+		144, 122, 123, 77, 192, 77, 117, 246, 132, 139, 163, 31, 26, 99, 75, 76, 23, 206, 24, 252,
+		200, 112, 18, 199, 82, 203, 96, 23, 70, 76, 156, 253, 67, 126, 106, 164, 154, 25, 154, 95,
+		155, 32, 173, 48, 126, 0, 123, 129, 86, 203, 71, 65, 207, 131, 55, 168, 72, 235, 88, 180,
+		5, 20, 167, 118, 31, 36, 35, 125, 250, 33, 33, 224, 230, 106, 155, 79, 79, 137, 130, 57,
+		146, 66, 236, 129, 17, 178, 199, 180, 48, 108, 247, 161, 0, 139, 7, 0, 180, 41, 114, 7, 69,
+		134, 33, 178, 54, 23, 119, 67, 67, 173, 76, 36, 94, 29, 1, 134, 114, 228, 28, 69, 152, 14,
+		57, 17, 38, 6, 83, 43, 155, 211, 188, 64, 91, 193, 205, 125, 222, 52, 19, 237, 173, 184,
+		129, 128,
+	]
+	.into();
 
-	pallet_etf::GenesisConfig::<Test> {
-		genesis_resharing,
-		round_pubkey,
-	}
-	.assimilate_storage(&mut t)
-	.unwrap();
+	pallet_etf::GenesisConfig::<Test> { genesis_resharing, round_pubkey }
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 	pallet_session::GenesisConfig::<Test> { keys: session_keys }
 		.assimilate_storage(&mut t)

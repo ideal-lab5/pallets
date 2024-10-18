@@ -68,10 +68,16 @@ fn should_contain_mmr_digest() {
 			vec![
 				beefy_log(ConsensusLog::AuthoritiesChange(
 					ValidatorSet::new(
-						vec![mock_beefy_id(1), mock_beefy_id(2)], 
-						vec![mock_beefy_id(1), mock_beefy_id(2), mock_beefy_id(3), mock_beefy_id(4)],
+						vec![mock_beefy_id(1), mock_beefy_id(2)],
+						vec![
+							mock_beefy_id(1),
+							mock_beefy_id(2),
+							mock_beefy_id(3),
+							mock_beefy_id(4)
+						],
 						1
-					).unwrap()
+					)
+					.unwrap()
 				)),
 				beefy_log(ConsensusLog::MmrRoot(array_bytes::hex_n_into_unchecked(
 					"95803defe6ea9f41e7ec6afa497064f21bfded027d8812efacbdf984e630cbdc"
@@ -87,10 +93,16 @@ fn should_contain_mmr_digest() {
 			vec![
 				beefy_log(ConsensusLog::AuthoritiesChange(
 					ValidatorSet::new(
-						vec![mock_beefy_id(1), mock_beefy_id(2)], 
-						vec![mock_beefy_id(1), mock_beefy_id(2), mock_beefy_id(3), mock_beefy_id(4)],
+						vec![mock_beefy_id(1), mock_beefy_id(2)],
+						vec![
+							mock_beefy_id(1),
+							mock_beefy_id(2),
+							mock_beefy_id(3),
+							mock_beefy_id(4)
+						],
 						1
-					).unwrap()
+					)
+					.unwrap()
 				)),
 				beefy_log(ConsensusLog::MmrRoot(array_bytes::hex_n_into_unchecked(
 					"95803defe6ea9f41e7ec6afa497064f21bfded027d8812efacbdf984e630cbdc"
@@ -98,9 +110,15 @@ fn should_contain_mmr_digest() {
 				beefy_log(ConsensusLog::AuthoritiesChange(
 					ValidatorSet::new(
 						vec![mock_beefy_id(3), mock_beefy_id(4)],
-						vec![mock_beefy_id(1), mock_beefy_id(2), mock_beefy_id(3), mock_beefy_id(4)],
+						vec![
+							mock_beefy_id(1),
+							mock_beefy_id(2),
+							mock_beefy_id(3),
+							mock_beefy_id(4)
+						],
 						2
-					).unwrap()
+					)
+					.unwrap()
 				)),
 				beefy_log(ConsensusLog::MmrRoot(array_bytes::hex_n_into_unchecked(
 					"a73271a0974f1e67d6e9b8dd58e506177a2e556519a330796721e98279a753e2"

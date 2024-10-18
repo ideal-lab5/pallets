@@ -16,7 +16,6 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs)]
 
 //! Primitives for BEEFY protocol.
 //!
@@ -209,9 +208,9 @@ pub mod ecdsa_bls_crypto {
 			// TODO: I'm not actually using this currently, just doing this so it will compile..
 			false
 			// this is the original code but I can't get it to compile for some reason...
-			// something about a missing panic handler appears when I try to enable the full_crypto feature
-			// for sp-core and sp-application-crypto
-			// not sure what I broke exactly to cause this, but we 
+			// something about a missing panic handler appears when I try to enable the full_crypto
+			// feature for sp-core and sp-application-crypto
+			// not sure what I broke exactly to cause this, but we
 			// EcdsaBlsPair::verify_with_hasher::<H>(
 			// 	signature.as_inner_ref(),
 			// 	msg,
@@ -246,7 +245,7 @@ pub type ValidatorSetId = u64;
 // #[cfg(feature =  "bls-experimental")]
 #[derive(Decode, Encode, Debug, PartialEq, Clone, TypeInfo)]
 pub struct ValidatorSet<AuthorityId> {
-	/// Public keys of the validator set elements 
+	/// Public keys of the validator set elements
 	validators: Vec<AuthorityId>,
 	/// Public round key commitments for the validators
 	commitments: Vec<AuthorityId>,
@@ -391,12 +390,12 @@ where
 	//   have different validator set ids,
 	//   or both votes have the same commitment,
 	//     --> the equivocation is invalid.
-	if first.id != second.id ||
-		first.commitment.block_number != second.commitment.block_number ||
-		first.commitment.validator_set_id != second.commitment.validator_set_id ||
-		first.commitment.payload == second.commitment.payload
+	if first.id != second.id
+		|| first.commitment.block_number != second.commitment.block_number
+		|| first.commitment.validator_set_id != second.commitment.validator_set_id
+		|| first.commitment.payload == second.commitment.payload
 	{
-		return false
+		return false;
 	}
 
 	// check signatures on both votes are valid
@@ -404,7 +403,7 @@ where
 	let valid_second =
 		check_commitment_signature(&second.commitment, &second.id, &second.signature);
 
-	return valid_first && valid_second
+	return valid_first && valid_second;
 }
 
 /// New BEEFY validator set notification hook.
@@ -488,7 +487,7 @@ sp_api::decl_runtime_apis! {
 		// #[cfg(feature = "bls-experimental")]
 		/// Return a proof of knowledge for async secret sharing
 		fn read_share(who: AuthorityId) -> Option<Vec<u8>>;
-		
+
 		fn submit_unsigned_pulse(
 			signature_bytes: Vec<Vec<u8>>,
 			block_number: NumberFor<Block>,
@@ -513,11 +512,9 @@ mod tests {
 		let alice = ecdsa::Pair::from_string("//Alice", None).unwrap();
 		let alice_stash = ecdsa::Pair::from_string("//AliceStash", None).unwrap();
 		let set_id = 0;
-		let validators = ValidatorSet::<Public>::new(
-			vec![alice.public()], 
-			vec![alice_stash.public()], 
-			set_id
-		).unwrap();
+		let validators =
+			ValidatorSet::<Public>::new(vec![alice.public()], vec![alice_stash.public()], set_id)
+				.unwrap();
 
 		assert_eq!(validators.id(), set_id);
 		assert_eq!(validators.validators(), &vec![alice.public()]);

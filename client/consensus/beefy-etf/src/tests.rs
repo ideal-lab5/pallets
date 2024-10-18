@@ -213,7 +213,8 @@ impl TestNetFactory for BeefyTestNet {
 		Self::PeerData,
 	) {
 		let keys = &[BeefyKeyring::Alice, BeefyKeyring::Bob];
-		let validator_set = ValidatorSet::new(make_beefy_ids(keys), make_beefy_ids(keys), 0).unwrap();
+		let validator_set =
+			ValidatorSet::new(make_beefy_ids(keys), make_beefy_ids(keys), 0).unwrap();
 		let api = Arc::new(TestApi::new(self.beefy_genesis, &validator_set, GOOD_MMR_ROOT));
 		let inner = BlockImportAdapter::new(client.clone());
 		let (block_import, voter_links, rpc_links) =
@@ -598,7 +599,8 @@ async fn beefy_finalizing_blocks() {
 	sp_tracing::try_init_simple();
 
 	let peers = [BeefyKeyring::Alice, BeefyKeyring::Bob];
-	let validator_set = ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 0).unwrap();
+	let validator_set =
+		ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 0).unwrap();
 	let session_len = 10;
 	let min_block_delta = 4;
 
@@ -638,7 +640,8 @@ async fn lagging_validators() {
 	sp_tracing::try_init_simple();
 
 	let peers = [BeefyKeyring::Alice, BeefyKeyring::Bob, BeefyKeyring::Charlie];
-	let validator_set = ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 0).unwrap();
+	let validator_set =
+		ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 0).unwrap();
 	let session_len = 30;
 	let min_block_delta = 1;
 
@@ -706,7 +709,8 @@ async fn correct_beefy_payload() {
 	sp_tracing::try_init_simple();
 
 	let peers = [BeefyKeyring::Alice, BeefyKeyring::Bob, BeefyKeyring::Charlie, BeefyKeyring::Dave];
-	let validator_set = ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 0).unwrap();
+	let validator_set =
+		ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 0).unwrap();
 	let session_len = 20;
 	let min_block_delta = 2;
 
@@ -930,7 +934,8 @@ async fn on_demand_beefy_justification_sync() {
 
 	let all_peers =
 		[BeefyKeyring::Alice, BeefyKeyring::Bob, BeefyKeyring::Charlie, BeefyKeyring::Dave];
-	let validator_set = ValidatorSet::new(make_beefy_ids(&all_peers), make_beefy_ids(&all_peers), 0).unwrap();
+	let validator_set =
+		ValidatorSet::new(make_beefy_ids(&all_peers), make_beefy_ids(&all_peers), 0).unwrap();
 	let session_len = 5;
 	let min_block_delta = 4;
 
@@ -1092,7 +1097,8 @@ async fn should_initialize_voter_at_custom_genesis() {
 	// now re-init after genesis changes
 
 	// should ignore existing aux db state and reinit at new genesis
-	let new_validator_set = ValidatorSet::new(make_beefy_ids(keys), make_beefy_ids(keys), 42).unwrap();
+	let new_validator_set =
+		ValidatorSet::new(make_beefy_ids(keys), make_beefy_ids(keys), 42).unwrap();
 	let new_pallet_genesis = 10;
 	let api = TestApi::new(new_pallet_genesis, &new_validator_set, GOOD_MMR_ROOT);
 
@@ -1164,7 +1170,8 @@ async fn should_initialize_voter_when_last_final_is_session_boundary() {
 	// verify block 10 is correctly marked as finalized
 	assert_eq!(persisted_state.best_beefy(), 10);
 	assert_eq!(persisted_state.best_grandpa_number(), 13);
-	// verify next vote target is diff-power-of-two block 12 -> no longer the case with modifications
+	// verify next vote target is diff-power-of-two block 12 -> no longer the case with
+	// modifications
 	assert_eq!(persisted_state.voting_oracle().voting_target(), Some(13));
 
 	// verify state also saved to db
@@ -1341,7 +1348,8 @@ async fn beefy_finalizing_after_pallet_genesis() {
 	sp_tracing::try_init_simple();
 
 	let peers = [BeefyKeyring::Alice, BeefyKeyring::Bob];
-	let validator_set = ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 14).unwrap();
+	let validator_set =
+		ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 14).unwrap();
 	let session_len = 10;
 	let min_block_delta = 1;
 	let pallet_genesis = 15;
@@ -1370,10 +1378,10 @@ async fn beefy_finalizing_after_pallet_genesis() {
 	finalize_block_and_wait_for_beefy(&net, peers.clone(), &hashes[21], &[20, 21]).await;
 }
 
-// note to the reviewer: for the moment, equivocations do not work as intended. 
+// note to the reviewer: for the moment, equivocations do not work as intended.
 // This is a consequence of the changes made to the beefy worker, where the worker
-// signs a VoteMessage with an empty message payload. 
-// In the next phase of the protocol when we address interoperability, 
+// signs a VoteMessage with an empty message payload.
+// In the next phase of the protocol when we address interoperability,
 // we will revisit this logic to complete the solution.
 // for now, lack of equivocation reporting does not cause any negative side effects
 
@@ -1382,8 +1390,8 @@ async fn beefy_finalizing_after_pallet_genesis() {
 // 	sp_tracing::try_init_simple();
 
 // 	let peers = [BeefyKeyring::Alice, BeefyKeyring::Bob, BeefyKeyring::Charlie];
-// 	let validator_set = ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers), 0).unwrap();
-// 	let session_len = 10;
+// 	let validator_set = ValidatorSet::new(make_beefy_ids(&peers), make_beefy_ids(&peers),
+// 0).unwrap(); 	let session_len = 10;
 // 	let min_block_delta = 4;
 
 // 	let mut net = BeefyTestNet::new(3);
@@ -1456,7 +1464,8 @@ async fn gossipped_finality_proofs() {
 	let validators = [BeefyKeyring::Alice, BeefyKeyring::Bob, BeefyKeyring::Charlie];
 	// Only Alice and Bob are running the voter -> finality threshold not reached
 	let peers = [BeefyKeyring::Alice, BeefyKeyring::Bob];
-	let validator_set = ValidatorSet::new(make_beefy_ids(&validators), make_beefy_ids(&validators), 0).unwrap();
+	let validator_set =
+		ValidatorSet::new(make_beefy_ids(&validators), make_beefy_ids(&validators), 0).unwrap();
 	let session_len = 10;
 	let min_block_delta = 1;
 

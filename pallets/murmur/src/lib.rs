@@ -1,9 +1,22 @@
+/*
+ * Copyright 2024 by Ideal Labs, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 //! # Murmur Pallet
-//!
-//!
-//!
 pub use pallet::*;
 
 #[cfg(test)]
@@ -12,33 +25,23 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
-// pub mod weights; TODO
-// pub use weights::WeightInfo;
-
-use ckb_merkle_mountain_range::{
-	util::{MemMMR, MemStore},
-	Merge, MerkleProof, Result as MMRResult, MMR,
-};
+use ckb_merkle_mountain_range::MerkleProof;
 use codec::{Decode, Encode};
 use frame_support::{
 	dispatch::GetDispatchInfo,
 	pallet_prelude::*,
 	traits::{ConstU32, IsSubType},
 };
-use log::info;
 use murmur_core::{
 	murmur,
-	types::{BlockNumber, Leaf, MergeLeaves},
+	types::{Leaf, MergeLeaves},
 };
+use pallet_randomness_beacon::TimelockEncryptionProvider;
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Dispatchable, DispatchResult};
-use sp_std::{prelude::ToOwned, vec, vec::Vec};
+use sp_runtime::traits::Dispatchable;
+use sp_std::{vec, vec::Vec};
 
-use pallet_randomness_beacon::{Ciphertext, TimelockEncryptionProvider};
-
-/// a bounded name
+/// A bounded name
 pub type Name = BoundedVec<u8, ConstU32<32>>;
 
 /// A struct to represent specific details of a murmur proxy account
@@ -85,14 +88,12 @@ pub mod pallet {
 			+ From<frame_system::Call<Self>>
 			+ IsSubType<Call<Self>>
 			+ IsType<<Self as frame_system::Config>::RuntimeCall>;
-		// / Type representing the weight of this pallet
-		// type WeightInfo: WeightInfo;
-		/// something that can decrypt messages locked for the current slot
+		/// Something that can decrypt messages locked for the current slot
 		type TlockProvider: TimelockEncryptionProvider<BlockNumberFor<Self>>;
 	}
 
-	/// a registry to track registered 'usernames' for OTP wallets
-	/// Q: what happens when this map becomes very large? in terms of query time?
+	/// A registry to track registered 'usernames' for OTP wallets
+	// Q: what happens when this map becomes very large? in terms of query time?
 	#[pallet::storage]
 	pub(super) type Registry<T: Config> =
 		StorageMap<_, Blake2_256, Name, MurmurProxyDetails<T::AccountId>, OptionQuery>;
@@ -117,13 +118,11 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-
 		/// Create a time-based proxy account
 		///
 		/// * `root`: The MMR root
 		/// * `size`: The size (number of leaves) of the MMR
 		/// * `name`: The name to assign to the murmur proxy
-		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(0)]
 		pub fn create(
@@ -164,12 +163,12 @@ pub mod pallet {
 		///
 		/// * `name`: The uid of the murmur proxy
 		/// * `position`: The position in the MMR of the encrypted OTP code
-		/// * `target_leaf`: The target leaf data (ciphertext)
 		/// * `hash`: A hash to commit to the OTP code and call data
-		/// * `proof`: A merkle proof that the target leaf is in the expected MMR at the given position
+		/// * `ciphertext`: The encrypted OTP code
+		/// * `proof`: A merkle proof that the target leaf is in the expected MMR at the given
+		///   position
 		/// * `size`: The size of the Merkle proof
 		/// * `call`: The call to be proxied
-		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(1)]
 		pub fn proxy(
@@ -188,7 +187,7 @@ pub mod pallet {
 
 			let result = T::TlockProvider::decrypt_at(&ciphertext, when)
 				.map_err(|_| Error::<T>::BadCiphertext)?;
-			let mut otp = result.message;
+			let otp = result.message;
 
 			let leaves: Vec<Leaf> = proof.clone().into_iter().map(|p| Leaf(p)).collect::<Vec<_>>();
 			let merkle_proof = MerkleProof::<Leaf, MergeLeaves>::new(size, leaves.clone());
@@ -201,7 +200,7 @@ pub mod pallet {
 				ciphertext,
 				otp,
 				call.encode().to_vec(),
-				position
+				position,
 			);
 
 			frame_support::ensure!(validity, Error::<T>::InvalidMerkleProof);

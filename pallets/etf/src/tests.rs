@@ -14,19 +14,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::vec;
 use crate::{self as etf, mock::*, Call, Config, Error, Weight};
+use std::vec;
 
 #[test]
 fn genesis_session_initializes_resharing_and_commitments_with_valid_values() {
-	let genesis_resharing = vec![
-			(1, vec![2]), 
-			(2, vec![2]),
-            (3, vec![2])
-		];
+	let genesis_resharing = vec![(1, vec![2]), (2, vec![2]), (3, vec![2])];
 
 	let want_resharing = genesis_resharing.clone();
-	let genesis_roundkey = [1;96].to_vec();
+	let genesis_roundkey = [1; 96].to_vec();
 
 	new_test_ext(vec![1, 2, 3]).execute_with(|| {
 		// resharings are populated
@@ -34,6 +30,6 @@ fn genesis_session_initializes_resharing_and_commitments_with_valid_values() {
 		assert_eq!(resharings.len(), 3);
 		assert_eq!(resharings[0], want_resharing[0].1);
 		assert_eq!(resharings[1], want_resharing[1].1);
-        assert_eq!(resharings[2], want_resharing[2].1);
+		assert_eq!(resharings[2], want_resharing[2].1);
 	});
 }
