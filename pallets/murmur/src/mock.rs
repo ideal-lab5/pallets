@@ -26,7 +26,7 @@ use frame_support::{
 };
 use murmur_test_utils::BOTPGenerator;
 use sha3::Digest;
-use sp_consensus_beefy_etf::mmr::MmrLeafVersion;
+use sp_consensus_beefy_etf::{mmr::MmrLeafVersion, test_utils::etf_genesis};
 use sp_core::Pair;
 use sp_io::TestExternalities;
 use sp_runtime::{
@@ -147,34 +147,29 @@ impl pallet_balances::Config for Test {
 
 impl pallet_randomness_beacon::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxPulses = ConstU32<256000>;
 }
 
-pub struct DummyTlockProvider;
-impl TimelockEncryptionProvider<u64> for DummyTlockProvider {
-	fn decrypt_at(
-		_bytes: &[u8],
-		when: u64,
-	) -> Result<DecryptionResult, pallet_randomness_beacon::TimelockError> {
-		let seed = b"seed".to_vec();
-		let mut hasher = sha3::Sha3_256::default();
-		hasher.update(seed);
-		let hash = hasher.finalize();
-		let generator = BOTPGenerator::new(hash.to_vec());
-		let otp_code = generator.generate(when as u32);
+// pub struct DummyTlockProvider;
+// impl TimelockEncryptionProvider<u64> for DummyTlockProvider {
+// 	fn decrypt_at(
+// 		_bytes: &[u8],
+// 		_when: u64,
+// 	) -> Result<DecryptionResult, pallet_randomness_beacon::TimelockError> {
+// 		// let seed = b"seed".to_vec();
+// 		// let botp = BOTPGenerator::new(b"seed".to_vec());
+// 		// let otp_code = botp.generate(when);
+// 		Ok(DecryptionResult { message: b"823185".to_vec(), secret: [2; 32] })
+// 	}
 
-		Ok(DecryptionResult { message: otp_code.as_bytes().to_vec(), secret: [0; 32] })
-	}
-
-	fn latest() -> u64 {
-		1
-	}
-}
+// 	fn latest() -> u64 {
+// 		1
+// 	}
+// }
 
 impl pallet_murmur::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
-	type TlockProvider = DummyTlockProvider;
+	type TlockProvider = RandomnessBeacon;
 }
 
 #[derive(
@@ -285,20 +280,9 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<(u64, BeefyId)>) -> TestExt
 		}
 	});
 
-	// mock the genesis config
-	let genesis_resharing: Vec<(sp_consensus_beefy_etf::bls_crypto::Public, Vec<u8>)> =
-		vec![(mock_beefy_id(123), [1u8; 32].into())];
-	let round_pubkey = [
-		144, 122, 123, 77, 192, 77, 117, 246, 132, 139, 163, 31, 26, 99, 75, 76, 23, 206, 24, 252,
-		200, 112, 18, 199, 82, 203, 96, 23, 70, 76, 156, 253, 67, 126, 106, 164, 154, 25, 154, 95,
-		155, 32, 173, 48, 126, 0, 123, 129, 86, 203, 71, 65, 207, 131, 55, 168, 72, 235, 88, 180,
-		5, 20, 167, 118, 31, 36, 35, 125, 250, 33, 33, 224, 230, 106, 155, 79, 79, 137, 130, 57,
-		146, 66, 236, 129, 17, 178, 199, 180, 48, 108, 247, 161, 0, 139, 7, 0, 180, 41, 114, 7, 69,
-		134, 33, 178, 54, 23, 119, 67, 67, 173, 76, 36, 94, 29, 1, 134, 114, 228, 28, 69, 152, 14,
-		57, 17, 38, 6, 83, 43, 155, 211, 188, 64, 91, 193, 205, 125, 222, 52, 19, 237, 173, 184,
-		129, 128,
-	]
-	.into();
+	let (round_pubkey, genesis_resharing) = etf_genesis::<w3f_bls::TinyBLS377>(
+		authorities.iter().map(|(_, id)| id.clone()).collect::<Vec<_>>(),
+	);
 
 	pallet_etf::GenesisConfig::<Test> { genesis_resharing, round_pubkey }
 		.assimilate_storage(&mut t)

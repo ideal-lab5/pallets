@@ -33,13 +33,14 @@ use frame_support::{
 	traits::{ConstU32, IsSubType},
 };
 use murmur_core::{
-	murmur,
+	murmur::verifier::{verify_execute, verify_update},
 	types::{Leaf, MergeLeaves},
 };
 use pallet_randomness_beacon::TimelockEncryptionProvider;
 use scale_info::TypeInfo;
 use sp_runtime::traits::Dispatchable;
 use sp_std::{vec, vec::Vec};
+use w3f_bls::TinyBLS377;
 
 /// A bounded name
 pub type Name = BoundedVec<u8, ConstU32<32>>;
@@ -61,9 +62,13 @@ pub struct MurmurProxyDetails<AccountId> {
 	/// The proxy account address
 	pub address: AccountId,
 	/// The MMR root
-	pub root: Vec<u8>,
+	pub root: BoundedVec<u8, ConstU32<32>>,
 	/// The MMR size
 	pub size: u64,
+	/// The serialized VRF pubkey
+	pub pubkey: BoundedVec<u8, ConstU32<48>>,
+	/// The nonce of the Murmur proxy
+	pub nonce: u64,
 }
 
 #[frame_support::pallet]
@@ -101,8 +106,9 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		OtpProxyCreated,
-		OtpProxyExecuted,
+		MurmurProxyCreated,
+		MurmurProxyExecuted,
+		MurmurProxyUpdated,
 	}
 
 	// Errors inform users that something went wrong.
@@ -112,6 +118,10 @@ pub mod pallet {
 		DuplicateName,
 		InvalidOTP,
 		InvalidMerkleProof,
+		/// The Schnorr proof could not be verified
+		SchnorrProofVerificationFailed,
+		/// https://crypto.stanford.edu/cs355/19sp/lec5.pdf
+		InvalidSchnorrProof,
 		InvalidProxy,
 		ProxyDNE,
 	}
@@ -123,17 +133,22 @@ pub mod pallet {
 		/// * `root`: The MMR root
 		/// * `size`: The size (number of leaves) of the MMR
 		/// * `name`: The name to assign to the murmur proxy
+		/// * `proof`: A (serialized) DLEQ proof
+		/// * `public_key`: A (serialized) public key associated with the DLEQ
+		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(0)]
 		pub fn create(
 			origin: OriginFor<T>,
-			root: Vec<u8>,
+			root: BoundedVec<u8, ConstU32<32>>,
 			size: u64,
 			name: BoundedVec<u8, ConstU32<32>>,
+			proof: BoundedVec<u8, ConstU32<80>>,
+			pubkey: BoundedVec<u8, ConstU32<48>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			// check duplicate name
+			// ensure unique names
 			ensure!(Registry::<T>::get(name.clone()).is_none(), Error::<T>::DuplicateName);
 
 			// create a pure proxy with no delegate
@@ -148,10 +163,63 @@ pub mod pallet {
 			)?;
 
 			let address =
-				pallet_proxy::Pallet::<T>::pure_account(&who, &T::ProxyType::default(), 0, None);
+				pallet_proxy::Pallet::<T>::pure_account(
+					&who, &T::ProxyType::default(), 0, None);
 
-			Registry::<T>::insert(name, &MurmurProxyDetails { address, root, size });
-			Self::deposit_event(Event::OtpProxyCreated);
+			let nonce = 0;
+
+			let validity = verify_update::<TinyBLS377>(
+				proof.to_vec(), 
+				pubkey.to_vec(), 
+				nonce,
+			).map_err(|_| Error::<T>::SchnorrProofVerificationFailed)?;
+
+			ensure!(validity, Error::<T>::InvalidSchnorrProof);
+
+			Registry::<T>::insert(
+				name,
+				&MurmurProxyDetails { address, root, size, pubkey, nonce },
+			);
+			Self::deposit_event(Event::MurmurProxyCreated);
+
+			Ok(())
+		}
+
+		/// Update the MMR associated with a Murmur proxy
+		/// Does not require a signed origin
+		///
+		/// * `root`: The MMR root
+		/// * `size`: The size (number of leaves) of the MMR
+		/// * `name`: The name to assign to the murmur proxy
+		/// * `proof`: A (serialized) DLEQ proof
+		/// * `public_key`: A (serialized) public key associated with the DLEQ
+		///
+		#[pallet::weight(0)]
+		#[pallet::call_index(1)]
+		pub fn update(
+			_origin: OriginFor<T>,
+			name: BoundedVec<u8, ConstU32<32>>,
+			new_root: BoundedVec<u8, ConstU32<32>>,
+			new_size: u64,
+			proof: BoundedVec<u8, ConstU32<48>>
+		) -> DispatchResult {
+			// let who = ensure_signed(origin)?;
+			let proxy_details = Registry::<T>::get(name.clone())
+				.ok_or(Error::<T>::InvalidProxy)?;
+			// verify the proof
+			let next_nonce = proxy_details.nonce + 1;
+			let validity = 
+				verify_update::<TinyBLS377>(proof.to_vec(), proxy_details.pubkey.to_vec(), next_nonce)
+					.map_err(|_| Error::<T>::SchnorrProofVerificationFailed)?;
+			ensure!(validity, Error::<T>::InvalidSchnorrProof);
+			// update proxy details
+			let mut new_proxy_details = proxy_details.clone();
+			new_proxy_details.root = new_root;
+			new_proxy_details.size = new_size;
+			new_proxy_details.nonce = next_nonce;
+
+			Registry::<T>::insert(name, &new_proxy_details);
+			Self::deposit_event(Event::MurmurProxyUpdated);
 
 			Ok(())
 		}
@@ -169,8 +237,9 @@ pub mod pallet {
 		///   position
 		/// * `size`: The size of the Merkle proof
 		/// * `call`: The call to be proxied
+		///
 		#[pallet::weight(0)]
-		#[pallet::call_index(1)]
+		#[pallet::call_index(2)]
 		pub fn proxy(
 			_origin: OriginFor<T>,
 			name: BoundedVec<u8, ConstU32<32>>,
@@ -183,23 +252,29 @@ pub mod pallet {
 		) -> DispatchResult {
 			let when = T::TlockProvider::latest();
 
-			let proxy_details = Registry::<T>::get(name.clone()).ok_or(Error::<T>::InvalidProxy)?;
+			let proxy_details = Registry::<T>::get(name.clone())
+				.ok_or(Error::<T>::InvalidProxy)?;
 
 			let result = T::TlockProvider::decrypt_at(&ciphertext, when)
 				.map_err(|_| Error::<T>::BadCiphertext)?;
+
 			let otp = result.message;
 
-			let leaves: Vec<Leaf> = proof.clone().into_iter().map(|p| Leaf(p)).collect::<Vec<_>>();
-			let merkle_proof = MerkleProof::<Leaf, MergeLeaves>::new(size, leaves.clone());
-			let root = Leaf(proxy_details.root);
+			let leaves: Vec<Leaf> = 
+				proof.clone().into_iter().map(|p| Leaf(p)).collect::<Vec<_>>();
+				
+			let merkle_proof = 
+				MerkleProof::<Leaf, MergeLeaves>::new(size, leaves.clone());
 
-			let validity = murmur::verify(
+			let root = Leaf(proxy_details.root.to_vec() );
+
+			let validity = verify_execute(
 				root,
 				merkle_proof,
 				hash,
 				ciphertext,
-				otp,
-				call.encode().to_vec(),
+				&otp,
+				&call.encode(),
 				position,
 			);
 
@@ -214,7 +289,7 @@ pub mod pallet {
 
 			pallet_proxy::Pallet::<T>::do_proxy(def, proxy_details.address, *call);
 
-			Self::deposit_event(Event::OtpProxyExecuted);
+			Self::deposit_event(Event::MurmurProxyExecuted);
 			Ok(())
 		}
 	}

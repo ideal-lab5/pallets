@@ -32,7 +32,9 @@ sp-runtime = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = 
 sp-core = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 ckb-merkle-mountain-range = { version = "0.5.2", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
-murmur-core = { package = "murmur-core", git = "https://github.com/ideal-lab5/murmur.git", branch = "dev", default-features = false }
+murmur-core = { package = "murmur-core", git = "https://github.com/ideal-lab5/murmur.git", branch = "feat/update", default-features = false }
+ark-transcript = { git = "https://github.com/w3f/ring-vrf.git", default-features = false}
+w3f-bls = { version = "0.1.3", default-features = false }
 
 # local dependencies
 pallet-proxy = { default-features = false, path = "../proxy" }
@@ -51,13 +53,13 @@ pallet-beefy-mmr-etf = { path = "../beefy-mmr-etf", default-features = false }
 sp-consensus-beefy-etf = { path = "../../primitives/consensus/beefy-etf", default-features = false, features = ["serde", "bls-experimental"] }
 sp-state-machine = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 rand_chacha ="0.3.1"
+rand_core = { version = "0.6.4", features = ["getrandom"], default-features = false }
 ark-std = { version = "0.4.0", default-features = false }
 hex = "0.4.3"
 sp-io = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false  }
 etf-crypto-primitives = { default-features =  false, git = "https://github.com/ideal-lab5/etf-sdk.git", branch = "dev"}
-w3f-bls = { version = "0.1.3", default-features = false }
 binary-merkle-tree = { version = "15.0.0", default-features = false }
-murmur-test-utils = { package = "murmur-test-utils", git = "https://github.com/ideal-lab5/murmur.git", branch = "dev", default-features = false }
+murmur-test-utils = { package = "murmur-test-utils", git = "https://github.com/ideal-lab5/murmur.git", branch = "feat/update", default-features = false }
 
 [features]
 default = ["std"]
@@ -92,6 +94,8 @@ std = [
 	"binary-merkle-tree/std",
 	"sp-state-machine/std",
 	"murmur-test-utils/std",
+	"ark-transcript/std",
+	"rand_core/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
