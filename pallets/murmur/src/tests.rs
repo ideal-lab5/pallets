@@ -199,7 +199,7 @@ fn it_can_proxy_valid_calls() {
 		let bounded_root = BoundedVec::<u8, ConstU32<32>>::truncate_from(root.0);
 		let bounded_pubkey = BoundedVec::<u8, ConstU32<48>>::truncate_from(mmr_store.public_key.clone());
 		let bounded_proof = BoundedVec::<u8, ConstU32<80>>::truncate_from(mmr_store.proof.clone());
-
+	
 		assert_ok!(Murmur::create(
 			RuntimeOrigin::signed(0),
 			bounded_root.clone(),
@@ -223,18 +223,18 @@ fn it_can_proxy_valid_calls() {
 			vec![sig_bytes_1.to_vec()],
 			WHEN,
 		));
-		
+
 		let call = call_remark(vec![1, 2, 3, 4, 5]);
-		let (proof, commitment, ciphertext, pos) = mmr_store
+		let (merkle_proof, commitment, ciphertext, pos) = mmr_store
 			.execute(
 				SEED.to_vec().clone(), 
-				WHEN.clone() as u32, 
+				WHEN.clone() as u32,
 				call.encode().to_vec(), 
 				&mut rng
 			).unwrap();
 
 		let proof_items: Vec<Vec<u8>> =
-			proof.proof_items().iter().map(|leaf| leaf.0.to_vec()).collect::<Vec<_>>();
+			merkle_proof.proof_items().iter().map(|leaf| leaf.0.to_vec()).collect::<Vec<_>>();
 
 		assert_ok!(Murmur::proxy(
 			RuntimeOrigin::signed(0),
@@ -243,7 +243,7 @@ fn it_can_proxy_valid_calls() {
 			commitment,
 			ciphertext,
 			proof_items,
-			size,
+			merkle_proof.mmr_size(),
 			Box::new(call),
 		));
 	});
