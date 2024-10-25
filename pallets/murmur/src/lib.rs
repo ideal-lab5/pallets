@@ -202,17 +202,23 @@ pub mod pallet {
 			_origin: OriginFor<T>,
 			name: BoundedVec<u8, ConstU32<32>>,
 			new_root: BoundedVec<u8, ConstU32<32>>,
+			proof: BoundedVec<u8, ConstU32<80>>,
 			new_size: u64,
-			proof: BoundedVec<u8, ConstU32<80>>
 		) -> DispatchResult {
 			// let who = ensure_signed(origin)?;
 			let proxy_details = Registry::<T>::get(name.clone())
 				.ok_or(Error::<T>::InvalidProxy)?;
 			// verify the proof
 			let next_nonce = proxy_details.nonce + 1;
-			let validity = 
-				verify_update::<TinyBLS377>(proof.to_vec(), proxy_details.pubkey.to_vec(), next_nonce)
-					.map_err(|_| Error::<T>::SchnorrProofVerificationFailed)?;
+
+			// panic!("{:?}, {:?}, {:?}", proof.to_vec(), proxy_details.pubkey.to_vec(), next_nonce);
+
+			let validity = verify_update::<TinyBLS377>(
+				proof.to_vec(), 
+				proxy_details.pubkey.to_vec(), 
+				next_nonce
+			).map_err(|_| Error::<T>::SchnorrProofVerificationFailed)?;
+			
 			ensure!(validity, Error::<T>::InvalidSchnorrProof);
 			// update proxy details
 			let mut new_proxy_details = proxy_details.clone();

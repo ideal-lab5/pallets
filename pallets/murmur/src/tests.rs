@@ -21,7 +21,7 @@ use frame_system::Call as SystemCall;
 use murmur_core::types::{BlockNumber, Identity, IdentityBuilder};
 use murmur_test_utils::MurmurStore;
 use sp_consensus_beefy_etf::{known_payloads, Commitment, Payload, ValidatorSetId};
-use sp_core::{bls377, ByteArray, Pair};
+use sp_core::{bls377, Pair};
 use w3f_bls::{DoublePublicKey, SerializableToBytes, TinyBLS377};
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
@@ -29,6 +29,7 @@ use murmur_core::{
 	murmur::verifier::{verify_execute, verify_update},
 	types::{Leaf, MergeLeaves},
 };
+use log::info;
 
 #[derive(Debug)]
 pub struct BasicIdBuilder;
@@ -52,7 +53,6 @@ pub const BLOCK_SCHEDULE: &[BlockNumber] = &[
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
 ];
 pub const WHEN: u64 = 10;
-pub const OTP: &[u8] = b"823185";
 pub const SEED: &[u8] = &[1, 2, 3];
 
 fn calculate_signature(
@@ -176,6 +176,100 @@ fn it_fails_to_create_new_proxy_with_duplicate_name() {
 }
 
 #[test]
+fn it_can_update_proxy() {
+	let _ = env_logger::try_init();
+	let unique_name = b"name".to_vec();
+	let bounded_name = BoundedVec::<u8, ConstU32<32>>::truncate_from(unique_name);
+
+	new_test_ext(vec![0]).execute_with(|| {
+		let round_pubkey_bytes = Etf::round_pubkey().to_vec();
+
+		let round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
+		let same_round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
+
+		// assert_eq!(round_pubkey, same_round_pubkey);
+
+		let mut rng = ChaCha20Rng::seed_from_u64(0);
+
+
+
+		let mmr_store = MurmurStore::new::<TinyBLS377, BasicIdBuilder, ChaCha20Rng>(
+            SEED.to_vec(),
+            BLOCK_SCHEDULE.to_vec(),
+            0,
+            round_pubkey,
+            &mut rng,
+        ).unwrap();
+
+		let proof = mmr_store.proof.clone();
+		let pk = mmr_store.public_key.clone();
+
+		// SANITY 1: verify the proof for nonce = 0
+		assert!(verify_update::<TinyBLS377>(
+			proof.clone(),
+			pk.clone(),			
+			0,
+		).is_ok());
+
+		let mut another_rng = ChaCha20Rng::seed_from_u64(1);
+		let another_murmur_store = MurmurStore::new::<TinyBLS377, BasicIdBuilder, ChaCha20Rng>(
+            SEED.to_vec(),
+            BLOCK_SCHEDULE.to_vec(),
+            1,
+            same_round_pubkey,
+            &mut another_rng,
+        ).unwrap();
+
+		let another_proof = another_murmur_store.proof;
+
+		// SANITY 2: verify the proof for nonce = 1
+		assert!(verify_update::<TinyBLS377>(
+			another_proof.clone(),
+			pk.clone(),			
+			1,
+		).is_ok());
+
+		info!("{:?}, {:?}, {:?}", another_proof.clone(), pk.clone(), 1); 
+
+		// now we create a proxy and then update it
+		/* CREATE THE PROXY */
+		let root = mmr_store.root.clone();
+		let bounded_root = BoundedVec::<u8, ConstU32<32>>::truncate_from(root.0);
+		let bounded_pubkey = BoundedVec::<u8, ConstU32<48>>::truncate_from(pk.clone());
+		let bounded_proof = BoundedVec::<u8, ConstU32<80>>::truncate_from(proof.clone());
+
+		assert_ok!(Murmur::create(
+			RuntimeOrigin::signed(0),
+			bounded_root,
+			BLOCK_SCHEDULE.len() as u64,
+			bounded_name.clone(),
+			bounded_proof.clone(),
+			bounded_pubkey.clone(),
+		));
+
+		// check storage
+		let registered_proxy = murmur::Registry::<Test>::get(bounded_name.clone());
+		assert!(registered_proxy.is_some());
+
+
+		/* UPDATE THE PROXY */
+		let second_root = another_murmur_store.root.clone();
+		let second_bounded_root = BoundedVec::<u8, ConstU32<32>>::truncate_from(second_root.0);
+		let second_bounded_proof = BoundedVec::<u8, ConstU32<80>>::truncate_from(another_proof.clone());
+		// let second_bounded_pubkey = BoundedVec::<u8, ConstU32<48>>::truncate_from(second_mmr_store.public_key);
+		
+		
+		assert_ok!(Murmur::update(
+			RuntimeOrigin::signed(0),
+			bounded_name.clone(),
+			second_bounded_root,
+			second_bounded_proof.clone(),
+			BLOCK_SCHEDULE.len() as u64,
+		));
+	});
+}
+
+#[test]
 fn it_can_proxy_valid_calls() {
 	let unique_name = b"name".to_vec();
 	let bounded_name = BoundedVec::<u8, ConstU32<32>>::truncate_from(unique_name);
@@ -188,7 +282,7 @@ fn it_can_proxy_valid_calls() {
 		let mut rng = ChaCha20Rng::seed_from_u64(0);
 		
 		let mmr_store = MurmurStore::new::<TinyBLS377, BasicIdBuilder, ChaCha20Rng>(
-			SEED.clone().to_vec(),
+			SEED.to_vec(),
 			BLOCK_SCHEDULE.to_vec().clone(),
 			0,
 			round_pubkey,
