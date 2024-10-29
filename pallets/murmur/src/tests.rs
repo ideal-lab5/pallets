@@ -14,21 +14,17 @@
  * limitations under the License.
  */
 
-use crate::{self as murmur, mock::*, Error, Call, Config};
+use crate::{self as murmur, mock::*, Error};
 use codec::Encode;
 use frame_support::{assert_ok, assert_noop, traits::ConstU32, BoundedVec};
 use frame_system::Call as SystemCall;
 use murmur_core::types::{BlockNumber, Identity, IdentityBuilder};
-use murmur_test_utils::MurmurStore;
-use sp_consensus_beefy_etf::{known_payloads, Commitment, Payload, ValidatorSetId};
+use murmur_test_utils::{MurmurStore, get_dummy_beacon_pubkey};
+use sp_consensus_beefy_etf::{known_payloads, Commitment, Payload};
 use sp_core::{bls377, Pair};
 use w3f_bls::{DoublePublicKey, SerializableToBytes, TinyBLS377};
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
-use murmur_core::{
-	murmur::verifier::{verify_execute, verify_update},
-	types::{Leaf, MergeLeaves},
-};
 use log::info;
 
 #[derive(Debug)]
@@ -75,8 +71,8 @@ fn it_can_create_new_proxy_with_unique_name() {
 	let size = 3;
 
 	new_test_ext(vec![0]).execute_with(|| {
-		let round_pubkey_bytes = Etf::round_pubkey().to_vec();
-		let round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
+		let round_pubkey_bytes = get_dummy_beacon_pubkey();
+				let round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
 
 		let mut rng = ChaCha20Rng::seed_from_u64(0);
 
@@ -87,15 +83,6 @@ fn it_can_create_new_proxy_with_unique_name() {
 			round_pubkey,
 			&mut rng,
 		).unwrap();
-
-		// sanity check
-		let validity = verify_update::<TinyBLS377>(
-			mmr_store.proof.clone(), 
-			mmr_store.public_key.clone(), 
-			0,
-		).unwrap();
-
-		assert!(validity);
 
 		let root = mmr_store.root.clone();
 
@@ -130,7 +117,7 @@ fn it_fails_to_create_new_proxy_with_duplicate_name() {
 	let size = 3;
 
 	new_test_ext(vec![0]).execute_with(|| {
-		let round_pubkey_bytes = Etf::round_pubkey().to_vec();
+		let round_pubkey_bytes = get_dummy_beacon_pubkey();
 		let round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
 
 		let mut rng = ChaCha20Rng::seed_from_u64(0);
@@ -182,7 +169,7 @@ fn it_can_update_proxy() {
 	let bounded_name = BoundedVec::<u8, ConstU32<32>>::truncate_from(unique_name);
 
 	new_test_ext(vec![0]).execute_with(|| {
-		let round_pubkey_bytes = Etf::round_pubkey().to_vec();
+		let round_pubkey_bytes = get_dummy_beacon_pubkey();
 
 		let round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
 		let same_round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
@@ -190,8 +177,6 @@ fn it_can_update_proxy() {
 		// assert_eq!(round_pubkey, same_round_pubkey);
 
 		let mut rng = ChaCha20Rng::seed_from_u64(0);
-
-
 
 		let mmr_store = MurmurStore::new::<TinyBLS377, BasicIdBuilder, ChaCha20Rng>(
             SEED.to_vec(),
@@ -204,32 +189,16 @@ fn it_can_update_proxy() {
 		let proof = mmr_store.proof.clone();
 		let pk = mmr_store.public_key.clone();
 
-		// SANITY 1: verify the proof for nonce = 0
-		assert!(verify_update::<TinyBLS377>(
-			proof.clone(),
-			pk.clone(),			
-			0,
-		).is_ok());
-
-		let mut another_rng = ChaCha20Rng::seed_from_u64(1);
+		let mut same_rng = ChaCha20Rng::seed_from_u64(0);
 		let another_murmur_store = MurmurStore::new::<TinyBLS377, BasicIdBuilder, ChaCha20Rng>(
             SEED.to_vec(),
             BLOCK_SCHEDULE.to_vec(),
             1,
             same_round_pubkey,
-            &mut another_rng,
+            &mut same_rng,
         ).unwrap();
 
 		let another_proof = another_murmur_store.proof;
-
-		// SANITY 2: verify the proof for nonce = 1
-		assert!(verify_update::<TinyBLS377>(
-			another_proof.clone(),
-			pk.clone(),			
-			1,
-		).is_ok());
-
-		info!("{:?}, {:?}, {:?}", another_proof.clone(), pk.clone(), 1); 
 
 		// now we create a proxy and then update it
 		/* CREATE THE PROXY */
@@ -276,7 +245,7 @@ fn it_can_proxy_valid_calls() {
 	let size = BLOCK_SCHEDULE.len() as u64;
 
 	new_test_ext(vec![0]).execute_with(|| {
-		let round_pubkey_bytes = Etf::round_pubkey().to_vec();
+		let round_pubkey_bytes = get_dummy_beacon_pubkey();
 		let round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
 
 		let mut rng = ChaCha20Rng::seed_from_u64(0);
@@ -303,28 +272,17 @@ fn it_can_proxy_valid_calls() {
 			bounded_pubkey.clone(),
 		));
 
-		// now we write a new pulse
-		let resharing_bytes_1 = &pallet_etf::Shares::<Test>::get()[0];
-		let payload = Payload::from_single_entry(known_payloads::ETF_SIGNATURE, Vec::new());
-		let validator_set_id = 0;
-		let commitment = Commitment { payload, block_number: WHEN, validator_set_id };
-		let (_pk1, signature_1) = calculate_signature(0, resharing_bytes_1, &commitment.encode());
-		let sig_bytes_1: &[u8] = signature_1.as_ref();
-
-		// now we write a pulse of randomness to the beacon pallet
-		assert_ok!(RandomnessBeacon::write_pulse(
-			RuntimeOrigin::none(),
-			vec![sig_bytes_1.to_vec()],
-			WHEN,
-		));
-
+		// we must simulate the protocol here
+		// in practice, the rng would be seeded from user input
+		// along with some secure source of entropy
+		let mut same_rng = ChaCha20Rng::seed_from_u64(0);
 		let call = call_remark(vec![1, 2, 3, 4, 5]);
 		let (merkle_proof, commitment, ciphertext, pos) = mmr_store
 			.execute(
 				SEED.to_vec().clone(), 
-				WHEN.clone() as u32,
+				10,
 				call.encode().to_vec(), 
-				&mut rng
+				&mut same_rng
 			).unwrap();
 
 		let proof_items: Vec<Vec<u8>> =

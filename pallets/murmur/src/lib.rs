@@ -211,8 +211,6 @@ pub mod pallet {
 			// verify the proof
 			let next_nonce = proxy_details.nonce + 1;
 
-			// panic!("{:?}, {:?}, {:?}", proof.to_vec(), proxy_details.pubkey.to_vec(), next_nonce);
-
 			let validity = verify_update::<TinyBLS377>(
 				proof.to_vec(), 
 				proxy_details.pubkey.to_vec(), 
@@ -258,15 +256,16 @@ pub mod pallet {
 			size: u64,
 			call: sp_std::boxed::Box<<T as pallet_proxy::Config>::RuntimeCall>,
 		) -> DispatchResult {
-			// let when = T::TlockProvider::latest();
+
+			let when = T::TlockProvider::latest();
 
 			let proxy_details = Registry::<T>::get(name.clone())
 				.ok_or(Error::<T>::InvalidProxy)?;
 
-			// let result = T::TlockProvider::decrypt_at(&ciphertext, when)
-			// 	.map_err(|_| Error::<T>::BadCiphertext)?;
+			let result = T::TlockProvider::decrypt_at(&ciphertext, when)
+				.map_err(|_| Error::<T>::BadCiphertext)?;
 
-			// let otp = result.message;
+			let otp = result.message;
 
 			let leaves: Vec<Leaf> = 
 				proof.clone().into_iter().map(|p| Leaf(p)).collect::<Vec<_>>();
@@ -280,28 +279,28 @@ pub mod pallet {
 				panic!("huh");
 			}
 
-			// let validity = verify_execute(
-			// 	root,
-			// 	merkle_proof,
-			// 	hash,
-			// 	ciphertext,
-			// 	&otp,
-			// 	&call.encode(),
-			// 	position,
-			// );
+			let validity = verify_execute(
+				root,
+				merkle_proof,
+				hash,
+				ciphertext,
+				&otp,
+				&call.encode(),
+				position,
+			);
 
-			// frame_support::ensure!(validity, Error::<T>::InvalidMerkleProof);
+			frame_support::ensure!(validity, Error::<T>::InvalidMerkleProof);
 
-			// let def = pallet_proxy::Pallet::<T>::find_proxy(
-			// 	&proxy_details.address,
-			// 	None,
-			// 	Some(T::ProxyType::default()),
-			// )
-			// .map_err(|_| Error::<T>::InvalidProxy)?;
+			let def = pallet_proxy::Pallet::<T>::find_proxy(
+				&proxy_details.address,
+				None,
+				Some(T::ProxyType::default()),
+			)
+			.map_err(|_| Error::<T>::InvalidProxy)?;
 
-			// pallet_proxy::Pallet::<T>::do_proxy(def, proxy_details.address, *call);
+			pallet_proxy::Pallet::<T>::do_proxy(def, proxy_details.address, *call);
 
-			// Self::deposit_event(Event::MurmurProxyExecuted);
+			Self::deposit_event(Event::MurmurProxyExecuted);
 			Ok(())
 		}
 	}
