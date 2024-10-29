@@ -275,10 +275,6 @@ pub mod pallet {
 
 			let root = Leaf(proxy_details.root.to_vec() );
 
-			if !merkle_proof.verify(root.clone(), vec![(position, Leaf(ciphertext.clone()))]).unwrap() {
-				panic!("huh");
-			}
-
 			let validity = verify_execute(
 				root,
 				merkle_proof,
