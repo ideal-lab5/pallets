@@ -108,24 +108,31 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// A murmur proxy was created
 		MurmurProxyCreated,
+		/// A murmur proxy was execute
 		MurmurProxyExecuted,
+		/// A murmur proxy was updated
 		MurmurProxyUpdated,
 	}
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The ciphertext could not be recovered
 		BadCiphertext,
+		/// The input name is already used
 		DuplicateName,
+		/// The OTP code is invalid
 		InvalidOTP,
+		/// The Merkle proof could not be verified
 		InvalidMerkleProof,
 		/// The Schnorr proof could not be verified
 		SchnorrProofVerificationFailed,
 		/// https://crypto.stanford.edu/cs355/19sp/lec5.pdf
 		InvalidSchnorrProof,
+		/// The proxy is not registered as a Murmur wallet or does not exist 
 		InvalidProxy,
-		ProxyDNE,
 	}
 
 	#[pallet::call]

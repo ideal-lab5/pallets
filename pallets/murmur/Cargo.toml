@@ -59,7 +59,7 @@ hex = "0.4.3"
 sp-io = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false  }
 etf-crypto-primitives = { default-features =  false, git = "https://github.com/ideal-lab5/etf-sdk.git", branch = "dev"}
 binary-merkle-tree = { version = "15.0.0", default-features = false }
-murmur-test-utils = { package = "murmur-test-utils", git = "https://github.com/ideal-lab5/murmur.git", branch = "feat/update", deafult-features = false }
+murmur-test-utils = { package = "murmur-test-utils", git = "https://github.com/ideal-lab5/murmur.git", branch = "feat/update", default-features = false }
 env_logger = "*"
 
 [features]
