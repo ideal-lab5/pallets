@@ -615,8 +615,6 @@ impl<T: Config> Pallet<T> {
 
 	/// Fetch a remote URL and return the body of the response as a string.
 	fn fetch(uri: &str) -> Result<String, http::Error> {
-		// TODO: move this value to config
-		// https://github.com/ideal-lab5/pallet-drand/issues/5
 		let deadline =
 			sp_io::offchain::timestamp().add(Duration::from_millis(T::HttpFetchTimeout::get()));
 		let request = http::Request::get(uri);
