@@ -311,6 +311,10 @@ pub mod pallet {
 		/// multiple pallets send unsigned transactions.
 		#[pallet::constant]
 		type UnsignedPriority: Get<TransactionPriority>;
+		/// The maximum number of milliseconds we are willing to wait for the HTTP request to
+		/// complete.
+		#[pallet::constant]
+		type HttpFetchTimeout: Get<u64>;
 	}
 
 	/// the drand beacon configuration
@@ -613,7 +617,8 @@ impl<T: Config> Pallet<T> {
 	fn fetch(uri: &str) -> Result<String, http::Error> {
 		// TODO: move this value to config
 		// https://github.com/ideal-lab5/pallet-drand/issues/5
-		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
+		let deadline =
+			sp_io::offchain::timestamp().add(Duration::from_millis(T::HttpFetchTimeout::get()));
 		let request = http::Request::get(uri);
 		let pending = request.deadline(deadline).send().map_err(|_| {
 			log::warn!("HTTP IO Error");
