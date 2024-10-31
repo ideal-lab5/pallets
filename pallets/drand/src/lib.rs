@@ -599,10 +599,21 @@ impl<T: Config> Pallet<T> {
 	/// Query the endpoint `{api}/{chainHash}/info` to receive information about the drand chain
 	/// Valid response bodies are deserialized into `BeaconInfoResponse`
 	fn fetch_drand_chain_info() -> Result<String, http::Error> {
+		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, QUICKNET_CHAIN_HASH);
+		Self::fetch(uri)
+	}
+
+	/// fetches the latest randomness from drand's API
+	fn fetch_drand() -> Result<String, http::Error> {
+		let uri: &str = &format!("{}/{}/public/latest", API_ENDPOINT, QUICKNET_CHAIN_HASH);
+		Self::fetch(uri)
+	}
+
+	/// Fetch a remote URL and return the body of the response as a string.
+	fn fetch(uri: &str) -> Result<String, http::Error> {
 		// TODO: move this value to config
 		// https://github.com/ideal-lab5/pallet-drand/issues/5
-		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(1_000));
-		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, QUICKNET_CHAIN_HASH);
+		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
 		let request = http::Request::get(uri);
 		let pending = request.deadline(deadline).send().map_err(|_| {
 			log::warn!("HTTP IO Error");
@@ -612,28 +623,6 @@ impl<T: Config> Pallet<T> {
 			log::warn!("HTTP Deadline Reached");
 			http::Error::DeadlineReached
 		})??;
-
-		if response.code != 200 {
-			log::warn!("Unexpected status code: {}", response.code);
-			return Err(http::Error::Unknown);
-		}
-		let body = response.body().collect::<Vec<u8>>();
-		let body_str = alloc::str::from_utf8(&body).map_err(|_| {
-			log::warn!("No UTF8 body");
-			http::Error::Unknown
-		})?;
-
-		Ok(body_str.to_string())
-	}
-
-	/// fetches the latest randomness from drand's API
-	fn fetch_drand() -> Result<String, http::Error> {
-		// TODO https://github.com/ideal-lab5/pallet-drand/issues/5
-		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(1_000));
-		let uri: &str = &format!("{}/{}/public/latest", API_ENDPOINT, QUICKNET_CHAIN_HASH);
-		let request = http::Request::get(uri);
-		let pending = request.deadline(deadline).send().map_err(|_| http::Error::IoError)?;
-		let response = pending.try_wait(deadline).map_err(|_| http::Error::DeadlineReached)??;
 
 		if response.code != 200 {
 			log::warn!("Unexpected status code: {}", response.code);

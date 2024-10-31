@@ -678,7 +678,8 @@ fn on_initialize_weight_is_correct() {
 				+ TestWeightInfo::service_agenda_base(1)
 				+ <TestWeightInfo as MarginalWeightInfo>::service_task(None, true, true)
 				+ TestWeightInfo::execute_dispatch_unsigned()
-				+ call_weight + Weight::from_parts(4, 0)
+				+ call_weight
+				+ Weight::from_parts(4, 0)
 		);
 		assert_eq!(IncompleteSince::<Test>::get(), None);
 		assert_eq!(logger::log(), vec![(root(), 2600u32)]);
@@ -690,10 +691,12 @@ fn on_initialize_weight_is_correct() {
 				+ TestWeightInfo::service_agenda_base(2)
 				+ <TestWeightInfo as MarginalWeightInfo>::service_task(None, false, true)
 				+ TestWeightInfo::execute_dispatch_unsigned()
-				+ call_weight + Weight::from_parts(3, 0)
+				+ call_weight
+				+ Weight::from_parts(3, 0)
 				+ <TestWeightInfo as MarginalWeightInfo>::service_task(None, false, false)
 				+ TestWeightInfo::execute_dispatch_unsigned()
-				+ call_weight + Weight::from_parts(2, 0)
+				+ call_weight
+				+ Weight::from_parts(2, 0)
 		);
 		assert_eq!(IncompleteSince::<Test>::get(), None);
 		assert_eq!(logger::log(), vec![(root(), 2600u32), (root(), 69u32), (root(), 42u32)]);
@@ -705,7 +708,8 @@ fn on_initialize_weight_is_correct() {
 				+ TestWeightInfo::service_agenda_base(1)
 				+ <TestWeightInfo as MarginalWeightInfo>::service_task(None, true, false)
 				+ TestWeightInfo::execute_dispatch_unsigned()
-				+ call_weight + Weight::from_parts(1, 0)
+				+ call_weight
+				+ Weight::from_parts(1, 0)
 		);
 		assert_eq!(IncompleteSince::<Test>::get(), None);
 		assert_eq!(
