@@ -90,6 +90,7 @@ impl pallet_drand_bridge::Config for Test {
 	type WeightInfo = pallet_drand_bridge::weights::SubstrateWeight<Test>;
 	type Verifier = QuicknetVerifier;
 	type UnsignedPriority = UnsignedPriority;
+	type HttpFetchTimeout = ConstU64<1_000>;
 }
 
 // Build genesis storage according to the mock runtime.
