@@ -1,5 +1,6 @@
 use crate as pallet_drand_bridge;
 use crate::*;
+use crate::verifier::*;
 use frame_support::{
 	derive_impl, parameter_types,
 	traits::{ConstU16, ConstU64},
@@ -88,7 +89,12 @@ impl pallet_drand_bridge::Config for Test {
 	type AuthorityId = crypto::TestAuthId;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand_bridge::weights::SubstrateWeight<Test>;
+
+	#[cfg(feature = "mainnet")]
+	type Verifier = MainnetVerifier;
+	#[cfg(not(feature = "mainnet"))]
 	type Verifier = QuicknetVerifier;
+
 	type UnsignedPriority = UnsignedPriority;
 	type HttpFetchTimeout = ConstU64<1_000>;
 }

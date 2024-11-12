@@ -4,7 +4,7 @@ This document describes how the drand bridge pallet works.
 
 ## Overview
 
-Drand's quicknet periodically outputs pulses of verifiable randomness every 3 seconds. There are various API's which provide access to the beacon, with this pallet simply using the main `api.drand.sh` URI. This pallet runs an offchain worker, which executes each time a node imports a new (*not* finalized) block. 
+Drand's quicknet periodically outputs pulses of verifiable randomness every 3 seconds. There are various API's which provide access to the beacon, with this pallet simply using the main `https://drand.cloudflare.com` URI. This pallet runs an offchain worker, which executes each time a node imports a new (*not* finalized) block. 
 
 ### Assumption and Limitations
 

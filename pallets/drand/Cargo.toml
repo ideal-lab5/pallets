@@ -86,3 +86,5 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+# use the drand mainnet configuration
+mainnet = []
