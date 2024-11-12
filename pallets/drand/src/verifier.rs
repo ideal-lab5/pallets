@@ -17,7 +17,7 @@
 //! A collection of verifiers 
 //!
 //! 
-
+use alloc::{format, string::String, vec, vec::Vec};
 use crate::{
     bls12_381,
     types::{BeaconConfiguration, Pulse, RoundNumber}

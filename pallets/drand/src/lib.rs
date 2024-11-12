@@ -452,16 +452,24 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	fn get_chain_hash() -> &'static str {
+		if cfg!(not(feature = "mainnet")) {
+			return QUICKNET_CHAIN_HASH;
+		}
+		
+		MAINNET_CHAIN_HASH
+	}
+
 	/// Query the endpoint `{api}/{chainHash}/info` to receive information about the drand chain
 	/// Valid response bodies are deserialized into `BeaconInfoResponse`
 	fn fetch_drand_chain_info() -> Result<String, http::Error> {
-		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, QUICKNET_CHAIN_HASH);
+		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, Self::get_chain_hash());
 		Self::fetch(uri)
 	}
 
 	/// fetches the latest randomness from drand's API
 	fn fetch_drand() -> Result<String, http::Error> {
-		let uri: &str = &format!("{}/{}/public/latest", API_ENDPOINT, QUICKNET_CHAIN_HASH);
+		let uri: &str = &format!("{}/{}/public/latest", API_ENDPOINT, Self::get_chain_hash());
 		Self::fetch(uri)
 	}
 

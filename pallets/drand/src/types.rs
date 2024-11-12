@@ -26,7 +26,7 @@ pub type OpaquePublicKey = BoundedVec<u8, ConstU32<96>>;
 #[cfg(feature = "mainnet")]
 pub type OpaquePublicKey = BoundedVec<u8, ConstU32<48>>;
 /// an opaque hash type
-pub type BoundedHash = BoundedVec<u8, ConstU32<32>>;
+pub type BoundedHash = BoundedVec<u8, ConstU32<64>>;
 /// the round number to track rounds of the beacon
 pub type RoundNumber = u64;
 
