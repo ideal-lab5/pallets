@@ -42,10 +42,14 @@ use sp_runtime::traits::Dispatchable;
 use sp_std::{vec, vec::Vec};
 use w3f_bls::TinyBLS377;
 
-/// A bounded name
+/// A bounded name of a Murmur Proxy
 pub type Name = BoundedVec<u8, ConstU32<32>>;
-// pub type Leaf = BoundedVec<u8, ConstU32<32>>;
-// pub type Proof = BoundedVec<u8, ConstU32<80>>;
+/// A root of an MMR
+pub type Root = BoundedVec<u8, ConstU32<32>>;
+/// A serialized public key (TinyBLS377 > SignatureGroup)
+pub type SerializedPublicKey = BoundedVec<u8, ConstU32<48>>;
+/// A serialized DLEQ proof
+pub type Proof = BoundedVec<u8, ConstU32<80>>;
 
 /// A struct to represent specific details of a murmur proxy account
 #[derive(
@@ -64,11 +68,11 @@ pub struct MurmurProxyDetails<AccountId> {
 	/// The proxy account address
 	pub address: AccountId,
 	/// The MMR root
-	pub root: BoundedVec<u8, ConstU32<32>>,
+	pub root: Vec<u8>,
 	/// The MMR size
 	pub size: u64,
 	/// The serialized VRF pubkey
-	pub pubkey: BoundedVec<u8, ConstU32<48>>,
+	pub pubkey: Vec<u8>,
 	/// The nonce of the Murmur proxy
 	pub nonce: u64,
 }
@@ -138,10 +142,9 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Create a time-based proxy account
-		///
+		/// * `name`: The name to assign to the murmur proxy
 		/// * `root`: The MMR root
 		/// * `size`: The size (number of leaves) of the MMR
-		/// * `name`: The name to assign to the murmur proxy
 		/// * `proof`: A (serialized) DLEQ proof
 		/// * `public_key`: A (serialized) public key associated with the DLEQ
 		///
@@ -149,11 +152,11 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		pub fn create(
 			origin: OriginFor<T>,
-			root: BoundedVec<u8, ConstU32<32>>,
+			name: Name,
+			root: Root,
 			size: u64,
-			name: BoundedVec<u8, ConstU32<32>>,
-			proof: BoundedVec<u8, ConstU32<80>>,
-			pubkey: BoundedVec<u8, ConstU32<48>>,
+			proof: Proof,
+			pubkey: SerializedPublicKey,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -187,7 +190,7 @@ pub mod pallet {
 
 			Registry::<T>::insert(
 				name,
-				&MurmurProxyDetails { address, root, size, pubkey, nonce },
+				&MurmurProxyDetails { address, root: root.to_vec(), size, pubkey: pubkey.to_vec(), nonce },
 			);
 			Self::deposit_event(Event::MurmurProxyCreated);
 
@@ -197,27 +200,25 @@ pub mod pallet {
 		/// Update the MMR associated with a Murmur proxy
 		/// Does not require a signed origin
 		///
+		/// * `name`: The name to assign to the murmur proxy
 		/// * `root`: The MMR root
 		/// * `size`: The size (number of leaves) of the MMR
-		/// * `name`: The name to assign to the murmur proxy
 		/// * `proof`: A (serialized) DLEQ proof
-		/// * `public_key`: A (serialized) public key associated with the DLEQ
 		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(1)]
 		pub fn update(
 			_origin: OriginFor<T>,
-			name: BoundedVec<u8, ConstU32<32>>,
-			new_root: BoundedVec<u8, ConstU32<32>>,
-			proof: BoundedVec<u8, ConstU32<80>>,
+			name: Name,
+			new_root: Root,
 			new_size: u64,
+			proof: Proof,
 		) -> DispatchResult {
 			// let who = ensure_signed(origin)?;
 			let proxy_details = Registry::<T>::get(name.clone())
 				.ok_or(Error::<T>::InvalidProxy)?;
 			// verify the proof
 			let next_nonce = proxy_details.nonce + 1;
-
 			let validity = verify_update::<TinyBLS377>(
 				proof.to_vec(), 
 				proxy_details.pubkey.to_vec(), 
@@ -227,7 +228,7 @@ pub mod pallet {
 			ensure!(validity, Error::<T>::InvalidSchnorrProof);
 			// update proxy details
 			let mut new_proxy_details = proxy_details.clone();
-			new_proxy_details.root = new_root;
+			new_proxy_details.root = new_root.to_vec();
 			new_proxy_details.size = new_size;
 			new_proxy_details.nonce = next_nonce;
 
@@ -273,7 +274,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::BadCiphertext)?;
 
 			let otp = result.message;
-
+			// TODO : can I remove the clone()?
 			let leaves: Vec<Leaf> = 
 				proof.clone().into_iter().map(|p| Leaf(p)).collect::<Vec<_>>();
 
