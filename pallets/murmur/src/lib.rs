@@ -135,7 +135,7 @@ pub mod pallet {
 		SchnorrProofVerificationFailed,
 		/// https://crypto.stanford.edu/cs355/19sp/lec5.pdf
 		InvalidSchnorrProof,
-		/// The proxy is not registered as a Murmur wallet or does not exist 
+		/// The proxy is not registered as a Murmur wallet or does not exist
 		InvalidProxy,
 	}
 
@@ -160,6 +160,13 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let nonce = 0;
+
+			let validity = verify_update::<TinyBLS377>(proof.to_vec(), pubkey.to_vec(), nonce)
+				.map_err(|_| Error::<T>::SchnorrProofVerificationFailed)?;
+
+			ensure!(validity == true, Error::<T>::InvalidSchnorrProof);
+
 			// ensure unique names
 			ensure!(Registry::<T>::get(name.clone()).is_none(), Error::<T>::DuplicateName);
 
@@ -175,22 +182,17 @@ pub mod pallet {
 			)?;
 
 			let address =
-				pallet_proxy::Pallet::<T>::pure_account(
-					&who, &T::ProxyType::default(), 0, None);
-
-			let nonce = 0;
-
-			let validity = verify_update::<TinyBLS377>(
-				proof.to_vec(), 
-				pubkey.to_vec(), 
-				nonce,
-			).map_err(|_| Error::<T>::SchnorrProofVerificationFailed)?;
-
-			ensure!(validity, Error::<T>::InvalidSchnorrProof);
+				pallet_proxy::Pallet::<T>::pure_account(&who, &T::ProxyType::default(), 0, None);
 
 			Registry::<T>::insert(
 				name,
-				&MurmurProxyDetails { address, root: root.to_vec(), size, pubkey: pubkey.to_vec(), nonce },
+				&MurmurProxyDetails {
+					address,
+					root: root.to_vec(),
+					size,
+					pubkey: pubkey.to_vec(),
+					nonce,
+				},
 			);
 			Self::deposit_event(Event::MurmurProxyCreated);
 
@@ -214,17 +216,16 @@ pub mod pallet {
 			new_size: u64,
 			proof: Proof,
 		) -> DispatchResult {
-			// let who = ensure_signed(origin)?;
-			let proxy_details = Registry::<T>::get(name.clone())
-				.ok_or(Error::<T>::InvalidProxy)?;
+			let proxy_details = Registry::<T>::get(name.clone()).ok_or(Error::<T>::InvalidProxy)?;
 			// verify the proof
 			let next_nonce = proxy_details.nonce + 1;
 			let validity = verify_update::<TinyBLS377>(
-				proof.to_vec(), 
-				proxy_details.pubkey.to_vec(), 
-				next_nonce
-			).map_err(|_| Error::<T>::SchnorrProofVerificationFailed)?;
-			
+				proof.to_vec(),
+				proxy_details.pubkey.to_vec(),
+				next_nonce,
+			)
+			.map_err(|_| Error::<T>::SchnorrProofVerificationFailed)?;
+
 			ensure!(validity, Error::<T>::InvalidSchnorrProof);
 			// update proxy details
 			let mut new_proxy_details = proxy_details.clone();
@@ -264,24 +265,19 @@ pub mod pallet {
 			size: u64,
 			call: sp_std::boxed::Box<<T as pallet_proxy::Config>::RuntimeCall>,
 		) -> DispatchResult {
-
 			let when = T::TlockProvider::latest();
 
-			let proxy_details = Registry::<T>::get(name.clone())
-				.ok_or(Error::<T>::InvalidProxy)?;
+			let proxy_details = Registry::<T>::get(name.clone()).ok_or(Error::<T>::InvalidProxy)?;
 
 			let result = T::TlockProvider::decrypt_at(&ciphertext, when)
 				.map_err(|_| Error::<T>::BadCiphertext)?;
 
 			let otp = result.message;
-			// TODO : can I remove the clone()?
-			let leaves: Vec<Leaf> = 
-				proof.clone().into_iter().map(|p| Leaf(p)).collect::<Vec<_>>();
+			let leaves: Vec<Leaf> = proof.clone().into_iter().map(|p| Leaf(p)).collect::<Vec<_>>();
 
-			let merkle_proof = 
-				MerkleProof::<Leaf, MergeLeaves>::new(size, leaves.clone());
+			let merkle_proof = MerkleProof::<Leaf, MergeLeaves>::new(size, leaves.clone());
 
-			let root = Leaf(proxy_details.root.to_vec() );
+			let root = Leaf(proxy_details.root.to_vec());
 
 			let validity = verify_execute(
 				root,

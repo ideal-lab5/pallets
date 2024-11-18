@@ -102,8 +102,6 @@ fn it_can_create_new_proxy_with_unique_name() {
 		// check storage
 		let registered_proxy = murmur::Registry::<Test>::get(bounded_name.clone());
 		assert!(registered_proxy.is_some());
-
-		// verify that the proxy exists
 	});
 }
 
@@ -174,8 +172,6 @@ fn it_can_update_proxy() {
 		let round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
 		let same_round_pubkey = DoublePublicKey::<TinyBLS377>::from_bytes(&round_pubkey_bytes).unwrap();
 
-		// assert_eq!(round_pubkey, same_round_pubkey);
-
 		let mut rng = ChaCha20Rng::seed_from_u64(0);
 
 		let mmr_store = MurmurStore::<EngineTinyBLS377>::new::<BasicIdBuilder, ChaCha20Rng>(
@@ -226,8 +222,6 @@ fn it_can_update_proxy() {
 		let second_root = another_murmur_store.root.clone();
 		let second_bounded_root = BoundedVec::<u8, ConstU32<32>>::truncate_from(second_root.0);
 		let second_bounded_proof = BoundedVec::<u8, ConstU32<80>>::truncate_from(another_proof.clone());
-		// let second_bounded_pubkey = BoundedVec::<u8, ConstU32<48>>::truncate_from(second_mmr_store.public_key);
-		
 		
 		assert_ok!(Murmur::update(
 			RuntimeOrigin::signed(0),
