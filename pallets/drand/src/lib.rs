@@ -35,10 +35,18 @@
 pub use pallet::*;
 
 extern crate alloc;
-use crate::alloc::string::ToString;
 
 use alloc::{format, string::String, vec, vec::Vec};
 use codec::Encode;
+use alloc::{
+	format,
+	string::{String, ToString},
+	vec,
+	vec::Vec,
+};
+use ark_ec::{hashing::HashToCurve, AffineRepr};
+use ark_serialize::CanonicalSerialize;
+use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, traits::Randomness};
 use frame_system::{
 	offchain::{
@@ -75,9 +83,12 @@ mod tests;
 mod benchmarking;
 pub mod weights;
 pub use weights::*;
+pub mod bls12_381;
+pub mod utils;
 
-/// the main drand api endpoint
-pub const API_ENDPOINT: &str = "https://drand.cloudflare.com";
+const USAGE: ark_scale::Usage = ark_scale::WIRE;
+type ArkScale<T> = ark_scale::ArkScale<T, USAGE>;
+
 /// the drand quicknet chain hash
 /// quicknet uses 'Tiny' BLS381, with small 48-byte sigs in G1 and 96-byte pubkeys in G2
 pub const QUICKNET_CHAIN_HASH: &str =
@@ -165,6 +176,9 @@ pub mod pallet {
 		/// complete.
 		#[pallet::constant]
 		type HttpFetchTimeout: Get<u64>;
+		/// The endpoint for the drand API
+		#[pallet::constant]
+		type ApiEndpoint: Get<&'static str>;
 	}
 
 	/// the drand beacon configuration
@@ -248,7 +262,7 @@ pub mod pallet {
 				Call::set_beacon_config { config_payload: ref payload, ref signature } => {
 					let signature = signature.as_ref().ok_or(InvalidTransaction::BadSigner)?;
 					// TODO validate it is a trusted source as any well-formatted config would pass
-					// https://github.com/ideal-lab5/pallet-drand/issues/3
+					// https://github.com/ideal-lab5/idn-sdk/issues/3
 					Self::validate_signature_and_parameters(
 						payload,
 						signature,
@@ -295,7 +309,7 @@ pub mod pallet {
 						// TODO: improve this, it's not efficient as it can be very slow when the
 						// history is large. We could set a new storage value with the latest
 						// round. Retrieve the lastest pulse and verify the round number
-						// https://github.com/ideal-lab5/pallet-drand/issues/4
+						// https://github.com/ideal-lab5/idn-sdk/issues/4
 						loop {
 							if let Some(last_pulse) = Pulses::<T>::get(last_block) {
 								frame_support::ensure!(
@@ -426,7 +440,7 @@ impl<T: Config> Pallet<T> {
 			.map_err(|_| "Received pulse contains invalid data")?;
 
 		// TODO: verify, before sending the tx that the pulse.round is greater than the stored one
-		// https://github.com/ideal-lab5/pallet-drand/issues/4
+		// https://github.com/ideal-lab5/idn-sdk/issues/4
 
 		let results = signer.send_unsigned_transaction(
 			|account| PulsePayload {
@@ -458,13 +472,13 @@ impl<T: Config> Pallet<T> {
 	/// Query the endpoint `{api}/{chainHash}/info` to receive information about the drand chain
 	/// Valid response bodies are deserialized into `BeaconInfoResponse`
 	fn fetch_drand_chain_info() -> Result<String, http::Error> {
-		let uri: &str = &format!("{}/{}/info", API_ENDPOINT, Self::get_chain_hash());
+		let uri: &str = &format!("{}/{}/info", T::ApiEndpoint::get(), Self::get_chain_hash());
 		Self::fetch(uri)
 	}
 
 	/// fetches the latest randomness from drand's API
 	fn fetch_drand() -> Result<String, http::Error> {
-		let uri: &str = &format!("{}/{}/public/latest", API_ENDPOINT, Self::get_chain_hash());
+		let uri: &str = &format!("{}/{}/public/latest", T::ApiEndpoint::get(), Self::get_chain_hash());
 		Self::fetch(uri)
 	}
 

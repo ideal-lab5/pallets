@@ -37,7 +37,7 @@ mod benchmarks {
 
 	#[benchmark]
 	fn write_pulse() {
-		// TODO: bechmkark the longest `write_pulse` branch https://github.com/ideal-lab5/pallet-drand/issues/8
+		// TODO: bechmkark the longest `write_pulse` branch https://github.com/ideal-lab5/idn-sdk/issues/8
 
 		let u_p: DrandResponseBody = serde_json::from_str(DRAND_RESPONSE).unwrap();
 		let p: Pulse = u_p.try_into_pulse().unwrap();

@@ -286,6 +286,11 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const UnsignedPriority: u64 = 1 << 20;
+	pub const ApiEndpoint: &'static str = "https://drand.cloudflare.com";
+}
+
 impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
@@ -293,6 +298,7 @@ impl pallet_drand::Config for Runtime {
 	type UnsignedPriority = ConstU64<{ 1 << 20 }>;
 	type HttpFetchTimeout = ConstU64<1_000>;
 	type Verifier = pallet_drand::verifier::QuicknetVerifier;
+	type ApiEndpoint = ApiEndpoint;
 }
 
 parameter_types! {
@@ -361,6 +367,7 @@ impl pallet_contracts::Config for Runtime {
 	type Environment = ();
 	type ApiVersion = ();
 	type Xcm = ();
+	type MaxTransientStorageSize = ConstU32<{ 1 * 1024 * 1024 }>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
