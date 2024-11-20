@@ -43,7 +43,7 @@ ark-crypto-primitives = { version = "0.4.0", default-features = false, features 
 ark-scale = { version = "0.0.11", default-features = false, features = ["hazmat"] }
 w3f-bls = { git = "https://github.com/w3f/bls", default-features = false }
 sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false }
-timelock = { git = "https://github.com/ideal-lab5/timelock", branch = "feat/stream-cipher", default-features = false }
+timelock = { git = "https://github.com/ideal-lab5/timelock", default-features = false }
 
 [dev-dependencies]
 sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false }
