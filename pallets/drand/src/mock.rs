@@ -1,5 +1,5 @@
 use crate as pallet_drand_bridge;
-use crate::*;
+use crate::{verifier::QuicknetVerifier, *};
 use frame_support::{
 	derive_impl, parameter_types,
 	traits::{ConstU16, ConstU64},

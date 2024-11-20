@@ -293,6 +293,7 @@ impl pallet_drand::Config for Runtime {
 	type Verifier = pallet_drand::QuicknetVerifier;
 	type UnsignedPriority = ConstU64<{ 1 << 20 }>;
 	type HttpFetchTimeout = ConstU64<1_000>;
+	type Verifier = pallet_drand::verifier::QuicknetVerifier;
 }
 
 parameter_types! {
