@@ -302,14 +302,14 @@ fn can_execute_and_handle_valid_http_responses() {
 		let mut state = state.write();
 		state.expect_request(PendingRequest {
 			method: "GET".into(),
-			uri: "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/info".into(),
+			uri: "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/info".into(),
 			response: Some(QUICKNET_INFO_RESPONSE.as_bytes().to_vec()),
 			sent: true,
 			..Default::default()
 		});
 		state.expect_request(PendingRequest {
 			method: "GET".into(),
-			uri: "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".into(),
+			uri: "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".into(),
 			response: Some(DRAND_RESPONSE.as_bytes().to_vec()),
 			sent: true,
 			..Default::default()
