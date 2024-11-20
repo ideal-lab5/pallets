@@ -26,7 +26,7 @@ pub type BoundedHash = BoundedVec<u8, ConstU32<64>>;
 /// the round number to track rounds of the beacon
 pub type RoundNumber = u64;
 
-/// the expected response body from the drand api endpoint `api.drand.sh/{chainId}/info`
+/// the expected response body from the Drand API
 #[derive(Debug, Decode, Default, PartialEq, Encode, Serialize, Deserialize, TypeInfo, Clone)]
 pub struct BeaconInfoResponse {
 	#[serde(with = "hex::serde")]
@@ -42,7 +42,7 @@ pub struct BeaconInfoResponse {
 	pub metadata: MetadataInfoResponse,
 }
 
-/// metadata associated with the drand info response
+/// metadata associated with the Drand info response
 #[derive(Debug, Decode, Default, PartialEq, Encode, Serialize, Deserialize, TypeInfo, Clone)]
 pub struct MetadataInfoResponse {
 	#[serde(rename = "beaconID")]
@@ -76,8 +76,8 @@ impl BeaconInfoResponse {
 	}
 }
 
-/// a pulse from the drand beacon
-/// the expected response body from the drand api endpoint `api.drand.sh/{chainId}/public/latest`
+/// a pulse from the Drand beacon
+/// the expected response body from the Drand API
 #[derive(Debug, Decode, Default, PartialEq, Encode, Serialize, Deserialize)]
 pub struct DrandResponseBody {
 	/// the randomness round number
@@ -94,7 +94,6 @@ pub struct DrandResponseBody {
 
 impl DrandResponseBody {
 	pub fn try_into_pulse(&self) -> Result<Pulse, String> {
-		// TODO:  update these bounded vecs
 		let bounded_randomness = BoundedVec::<u8, ConstU32<32>>::try_from(self.randomness.clone())
 			.map_err(|_| "Failed to convert randomness")?;
 		// TODO: why is the sig size so big?

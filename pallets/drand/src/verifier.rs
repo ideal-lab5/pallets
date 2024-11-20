@@ -50,8 +50,7 @@ pub trait Verifier {
 /// so messages contain only the round number. in addition, public keys are in G2 and signatures are
 /// in G1
 ///
-/// Values are valid if the pairing equality holds:
-///			 $e(sig, g_2) == e(msg_on_curve, pk)$
+/// Values are valid if the pairing equality holds: $e(sig, g_2) == e(msg_on_curve, pk)$
 /// where $sig \in \mathbb{G}_1$ is the signature
 ///       $g_2 \in \mathbb{G}_2$ is a generator
 ///       $msg_on_curve \in \mathbb{G}_1$ is a hash of the message that drand signed
@@ -72,7 +71,7 @@ impl Verifier for QuicknetVerifier {
 				.map_err(|e| format!("Failed to decode signature: {}", e))?;
 
 		// m = sha256({} || {round})
-		let message = message(pulse.round, &vec![]);
+		let message = message(pulse.round, &[]);
 		let hasher = <TinyBLS381 as EngineBLS>::hash_to_curve_map();
 		// H(m) \in G1
 		let message_hash =
