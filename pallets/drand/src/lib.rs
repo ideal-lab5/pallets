@@ -36,17 +36,13 @@ pub use pallet::*;
 
 extern crate alloc;
 
-use alloc::{format, string::String, vec, vec::Vec};
-use codec::Encode;
 use alloc::{
 	format,
 	string::{String, ToString},
 	vec,
 	vec::Vec,
 };
-use ark_ec::{hashing::HashToCurve, AffineRepr};
-use ark_serialize::CanonicalSerialize;
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::{pallet_prelude::*, traits::Randomness};
 use frame_system::{
 	offchain::{
@@ -83,11 +79,6 @@ mod tests;
 mod benchmarking;
 pub mod weights;
 pub use weights::*;
-pub mod bls12_381;
-pub mod utils;
-
-const USAGE: ark_scale::Usage = ark_scale::WIRE;
-type ArkScale<T> = ark_scale::ArkScale<T, USAGE>;
 
 /// the drand quicknet chain hash
 /// quicknet uses 'Tiny' BLS381, with small 48-byte sigs in G1 and 96-byte pubkeys in G2
@@ -478,7 +469,8 @@ impl<T: Config> Pallet<T> {
 
 	/// fetches the latest randomness from drand's API
 	fn fetch_drand() -> Result<String, http::Error> {
-		let uri: &str = &format!("{}/{}/public/latest", T::ApiEndpoint::get(), Self::get_chain_hash());
+		let uri: &str =
+			&format!("{}/{}/public/latest", T::ApiEndpoint::get(), Self::get_chain_hash());
 		Self::fetch(uri)
 	}
 
