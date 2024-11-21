@@ -82,6 +82,7 @@ where
 
 parameter_types! {
 	pub const UnsignedPriority: u64 = 1 << 20;
+	pub const ApiEndpoint: &'static str = "http://api";
 }
 
 impl pallet_drand_bridge::Config for Test {
@@ -91,6 +92,7 @@ impl pallet_drand_bridge::Config for Test {
 	type Verifier = QuicknetVerifier;
 	type UnsignedPriority = UnsignedPriority;
 	type HttpFetchTimeout = ConstU64<1_000>;
+	type ApiEndpoint = ApiEndpoint;
 }
 
 // Build genesis storage according to the mock runtime.

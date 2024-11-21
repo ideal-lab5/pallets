@@ -277,7 +277,7 @@ fn test_not_validate_unsigned_write_pulse_with_no_payload_signature() {
 #[test]
 #[ignore]
 fn test_validate_unsigned_write_pulse_by_non_authority() {
-	// TODO: https://github.com/ideal-lab5/pallet-drand/issues/3
+	// TODO: https://github.com/ideal-lab5/idn-sdk/issues/3
 	todo!(
 		"the transaction should be validated even if the signer of the payload is not an authority"
 	);
@@ -286,7 +286,7 @@ fn test_validate_unsigned_write_pulse_by_non_authority() {
 #[test]
 #[ignore]
 fn test_not_validate_unsigned_set_beacon_config_by_non_autority() {
-	// TODO: https://github.com/ideal-lab5/pallet-drand/issues/3
+	// TODO: https://github.com/ideal-lab5/idn-sdk/issues/3
 	todo!(
 		"the transaction should not be validated if the signer of the payload is not an authority"
 	);
@@ -302,14 +302,15 @@ fn can_execute_and_handle_valid_http_responses() {
 		let mut state = state.write();
 		state.expect_request(PendingRequest {
 			method: "GET".into(),
-			uri: "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/info".into(),
+			uri: "http://api/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/info"
+				.into(),
 			response: Some(QUICKNET_INFO_RESPONSE.as_bytes().to_vec()),
 			sent: true,
 			..Default::default()
 		});
 		state.expect_request(PendingRequest {
 			method: "GET".into(),
-			uri: "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".into(),
+			uri: "http://api/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".into(),
 			response: Some(DRAND_RESPONSE.as_bytes().to_vec()),
 			sent: true,
 			..Default::default()

@@ -19,7 +19,7 @@ use crate::{
 	bls12_381,
 	types::{BeaconConfiguration, Pulse, RoundNumber},
 };
-use alloc::{format, string::String, vec, vec::Vec};
+use alloc::{format, string::String, vec::Vec};
 use ark_ec::{hashing::HashToCurve, AffineRepr};
 use ark_serialize::CanonicalSerialize;
 use codec::Decode;

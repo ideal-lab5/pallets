@@ -1,7 +1,10 @@
 [package]
 name = "pallet-drand"
 description = "FRAME pallet for briding to drand."
-authors = ["Tony Riemer <driemworks@idealabs.network>"]
+authors = [
+	"Tony Riemer <driemworks@idealabs.network>",
+	"Juan Girini <juan@idealabs.network>"
+	]
 version = "0.0.1"
 license = "MIT-0"
 edition = "2021"
