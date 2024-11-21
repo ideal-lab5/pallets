@@ -367,7 +367,6 @@ impl pallet_contracts::Config for Runtime {
 	type Environment = ();
 	type ApiVersion = ();
 	type Xcm = ();
-	type MaxTransientStorageSize = ConstU32<{ 1 * 1024 * 1024 }>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
