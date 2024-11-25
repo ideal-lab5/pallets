@@ -19,14 +19,16 @@ use std::vec;
 
 use crate as pallet_murmur;
 use codec::Encode;
-use etf_crypto_primitives::encryption::tlock::DecryptionResult;
+use ark_serialize::CanonicalDeserialize;
+use etf_crypto_primitives::encryption::tlock::{DecryptionResult, TLECiphertext};
 use frame_support::{
 	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU128, ConstU32, ConstU64, InstanceFilter},
 };
-use murmur_test_utils::BOTPGenerator;
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 use sha3::Digest;
-use sp_consensus_beefy_etf::mmr::MmrLeafVersion;
+use sp_consensus_beefy_etf::{mmr::MmrLeafVersion, test_utils::etf_genesis};
 use sp_core::Pair;
 use sp_io::TestExternalities;
 use sp_runtime::{
@@ -36,14 +38,10 @@ use sp_runtime::{
 	BuildStorage,
 };
 use sp_state_machine::BasicExternalities;
+use w3f_bls::TinyBLS377;
+use ark_transcript::{digest::Update, Transcript};
 
 pub use sp_consensus_beefy_etf::bls_crypto::AuthorityId as BeefyId;
-
-impl_opaque_keys! {
-	pub struct MockSessionKeys {
-		pub dummy: pallet_beefy_etf::Pallet<Test>,
-	}
-}
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -51,12 +49,6 @@ construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		Session: pallet_session,
-		Mmr: pallet_mmr,
-		RandomnessBeacon: pallet_randomness_beacon,
-		Etf: pallet_etf,
-		Beefy: pallet_beefy_etf,
-		BeefyMmr: pallet_beefy_mmr_etf,
 		Balances: pallet_balances,
 		Proxy: pallet_proxy,
 		Murmur: pallet_murmur,
@@ -77,58 +69,6 @@ where
 	type Extrinsic = TestXt<RuntimeCall, ()>;
 }
 
-impl pallet_session::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type ValidatorId = u64;
-	type ValidatorIdOf = ConvertInto;
-	type ShouldEndSession = pallet_session::PeriodicSessions<ConstU64<1>, ConstU64<0>>;
-	type NextSessionRotation = pallet_session::PeriodicSessions<ConstU64<1>, ConstU64<0>>;
-	type SessionManager = MockSessionManager;
-	type SessionHandler = <MockSessionKeys as OpaqueKeys>::KeyTypeIdProviders;
-	type Keys = MockSessionKeys;
-	type WeightInfo = ();
-}
-
-impl pallet_mmr::Config for Test {
-	const INDEXING_PREFIX: &'static [u8] = b"mmr";
-	type Hashing = Keccak256;
-	type LeafData = BeefyMmr;
-	type OnNewRoot = pallet_beefy_mmr_etf::DepositBeefyDigest<Test>;
-	type WeightInfo = ();
-	type BlockHashProvider = pallet_mmr::DefaultBlockHashProvider<Test>;
-}
-
-impl pallet_etf::Config for Test {
-	type BeefyId = BeefyId;
-	type MaxAuthorities = ConstU32<100>;
-}
-
-impl pallet_beefy_etf::Config for Test {
-	type BeefyId = BeefyId;
-	type MaxAuthorities = ConstU32<100>;
-	type MaxNominators = ConstU32<1000>;
-	type MaxSetIdSessionEntries = ConstU64<100>;
-	type OnNewValidatorSet = BeefyMmr;
-	type WeightInfo = ();
-	type KeyOwnerProof = sp_core::Void;
-	type EquivocationReportSystem = ();
-	type RoundCommitmentProvider = Etf;
-}
-
-parameter_types! {
-	pub LeafVersion: MmrLeafVersion = MmrLeafVersion::new(1, 5);
-}
-
-impl pallet_beefy_mmr_etf::Config for Test {
-	type LeafVersion = LeafVersion;
-
-	type BeefyAuthorityToMerkleLeaf = pallet_beefy_mmr_etf::BeefyBlsToEthereum;
-
-	type LeafExtra = Vec<u8>;
-
-	type BeefyDataProvider = ();
-}
-
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type MaxReserves = ();
@@ -145,29 +85,32 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 }
 
-impl pallet_randomness_beacon::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type MaxPulses = ConstU32<256000>;
-}
-
 pub struct DummyTlockProvider;
 impl TimelockEncryptionProvider<u64> for DummyTlockProvider {
 	fn decrypt_at(
-		_bytes: &[u8],
+		bytes: &[u8],
 		when: u64,
 	) -> Result<DecryptionResult, pallet_randomness_beacon::TimelockError> {
-		let seed = b"seed".to_vec();
-		let mut hasher = sha3::Sha3_256::default();
-		hasher.update(seed);
-		let hash = hasher.finalize();
-		let generator = BOTPGenerator::new(hash.to_vec());
-		let otp_code = generator.generate(when as u32);
+		let seed = vec![1,2,3];
 
-		Ok(DecryptionResult { message: otp_code.as_bytes().to_vec(), secret: [0; 32] })
+		let mut transcript = Transcript::new_labeled(murmur_core::murmur::MURMUR_PROTO_OTP);
+		transcript.write_bytes(&seed);
+		let nonce: u64 = 0;
+		transcript.write_bytes(&nonce.to_be_bytes());
+	
+		let ephemeral_msk: Vec<u8> = vec![10, 124, 150, 208, 196, 211, 212, 13, 177, 116, 154, 11, 235, 242, 139, 2, 187, 80, 52, 58, 125, 72, 184, 194, 165, 119, 212, 134, 171, 185, 191, 101];
+
+		let ciphertext: TLECiphertext<TinyBLS377> =
+			TLECiphertext::deserialize_compressed(&mut &bytes[..]).unwrap();
+
+		let otp = ciphertext
+			.aes_decrypt(ephemeral_msk.as_slice().to_vec()).unwrap();
+
+		Ok(DecryptionResult { message: otp.message, secret: [2; 32] })
 	}
 
 	fn latest() -> u64 {
-		1
+		10
 	}
 }
 
@@ -231,21 +174,6 @@ impl pallet_proxy::Config for Test {
 	type AnnouncementDepositFactor = ConstU128<1>;
 }
 
-pub struct MockSessionManager;
-impl pallet_session::SessionManager<u64> for MockSessionManager {
-	fn end_session(_: sp_staking::SessionIndex) {}
-	fn start_session(_: sp_staking::SessionIndex) {}
-	fn new_session(idx: sp_staking::SessionIndex) -> Option<Vec<u64>> {
-		if idx == 0 || idx == 1 {
-			Some(vec![1, 2])
-		} else if idx == 2 {
-			Some(vec![3, 4])
-		} else {
-			None
-		}
-	}
-}
-
 // Note, that we can't use `UintAuthorityId` here. Reason is that the implementation
 // of `to_public_key()` assumes, that a public key is 32 bytes long. This is true for
 // ed25519 and sr25519 but *not* for ecdsa. A compressed ecdsa public key is 33 bytes,
@@ -270,41 +198,6 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<(u64, BeefyId)>) -> TestExt
 	let balances: Vec<_> = (0..authorities.len()).map(|i| (i as u64, 10_000_000)).collect();
 
 	pallet_balances::GenesisConfig::<Test> { balances }
-		.assimilate_storage(&mut t)
-		.unwrap();
-
-	let session_keys: Vec<_> = authorities
-		.iter()
-		.enumerate()
-		.map(|(_, id)| (id.0 as u64, id.0 as u64, MockSessionKeys { dummy: id.1.clone() }))
-		.collect();
-
-	BasicExternalities::execute_with_storage(&mut t, || {
-		for (ref id, ..) in &session_keys {
-			frame_system::Pallet::<Test>::inc_providers(id);
-		}
-	});
-
-	// mock the genesis config
-	let genesis_resharing: Vec<(sp_consensus_beefy_etf::bls_crypto::Public, Vec<u8>)> =
-		vec![(mock_beefy_id(123), [1u8; 32].into())];
-	let round_pubkey = [
-		144, 122, 123, 77, 192, 77, 117, 246, 132, 139, 163, 31, 26, 99, 75, 76, 23, 206, 24, 252,
-		200, 112, 18, 199, 82, 203, 96, 23, 70, 76, 156, 253, 67, 126, 106, 164, 154, 25, 154, 95,
-		155, 32, 173, 48, 126, 0, 123, 129, 86, 203, 71, 65, 207, 131, 55, 168, 72, 235, 88, 180,
-		5, 20, 167, 118, 31, 36, 35, 125, 250, 33, 33, 224, 230, 106, 155, 79, 79, 137, 130, 57,
-		146, 66, 236, 129, 17, 178, 199, 180, 48, 108, 247, 161, 0, 139, 7, 0, 180, 41, 114, 7, 69,
-		134, 33, 178, 54, 23, 119, 67, 67, 173, 76, 36, 94, 29, 1, 134, 114, 228, 28, 69, 152, 14,
-		57, 17, 38, 6, 83, 43, 155, 211, 188, 64, 91, 193, 205, 125, 222, 52, 19, 237, 173, 184,
-		129, 128,
-	]
-	.into();
-
-	pallet_etf::GenesisConfig::<Test> { genesis_resharing, round_pubkey }
-		.assimilate_storage(&mut t)
-		.unwrap();
-
-	pallet_session::GenesisConfig::<Test> { keys: session_keys }
 		.assimilate_storage(&mut t)
 		.unwrap();
 
