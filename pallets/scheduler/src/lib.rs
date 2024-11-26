@@ -101,7 +101,7 @@ use frame_system::{
 	{self as system},
 };
 pub use pallet::*;
-use pallet_randomness_beacon::TimelockEncryptionProvider;
+use sp_crypto_idn::{TimelockError, TimelockEncryptionProvider};
 use scale_info::TypeInfo;
 use sp_io::hashing::blake2_256;
 use sp_runtime::{
@@ -840,19 +840,19 @@ impl<T: Config> Pallet<T> {
 				// the task should be delayed until `then` == `when`
 				if then == when {
 					task.maybe_call = T::TlockProvider::decrypt_at(&ciphertext.clone(), then)
-						.map_err(|_| pallet_randomness_beacon::TimelockError::DecryptionFailed)
+						.map_err(|_| TimelockError::DecryptionFailed)
 						.and_then(|bare| {
 							if let Ok(call) =
-								<T as Config>::RuntimeCall::decode(&mut bare.message.as_slice())
+								<T as Config>::RuntimeCall::decode(&mut bare.as_slice())
 							{
 								Ok(call)
 							} else {
-								Err(pallet_randomness_beacon::TimelockError::DecryptionFailed)
+								Err(TimelockError::DecryptionFailed)
 							}
 						})
 						.and_then(|call| {
 							T::Preimages::bound(call).map_err(|_| {
-								pallet_randomness_beacon::TimelockError::DecryptionFailed
+								TimelockError::DecryptionFailed
 							})
 						})
 						.ok();

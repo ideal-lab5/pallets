@@ -16,6 +16,7 @@ scale-info = { version = "2.10.0", default-features = false, features = ["derive
 frame-benchmarking = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false , optional = true }
 frame-support = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 frame-system = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
+sp-crypto-idn = { path = "../../primitives/crypto", default-features = false }
 sp-io = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 sp-runtime = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 sp-std = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
@@ -28,7 +29,7 @@ pallet-preimage = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", bran
 pallet-timestamp = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
 sp-core = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 substrate-test-utils = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing" }
-etf-crypto-primitives = { git = "https://github.com/ideal-lab5/etf-sdk.git", branch = "dev" }
+timelock = { git = "https://github.com/ideal-lab5/timelock.git", default-features = false }
 ark-std = { version = "0.4.0", default-features = false }
 ark-ff = { version = "0.4.0", default-features = false }
 ark-poly = { version = "0.4.0", default-features = false }
@@ -36,9 +37,7 @@ ark-ec = { version = "0.4.0", default-features = false }
 ark-serialize = { version = "0.4.0", default-features = false }
 ark-bls12-381 = { version = "0.4.0", features = ["curve"], default-features = false }
 ark-crypto-primitives = { version = "0.4.0", default-features = false, features = ["signature"] }
-pallet-etf = { default-features = false, path = "../etf" }
 pallet-insecure-randomness-collective-flip = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false  }
-rand_chacha = { version = "0.3.1", default-features = false }
 
 [features]
 default = [ "std" ]
@@ -63,9 +62,9 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"sp-weights/std",
-	"pallet-etf/std",
 	"pallet-timestamp/std",
-	"pallet-randomness-beacon/std"
+	"pallet-randomness-beacon/std",
+	"timelock/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
