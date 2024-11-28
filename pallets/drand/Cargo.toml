@@ -44,7 +44,7 @@ ark-ec = { version = "0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false }
 ark-crypto-primitives = { version = "0.4.0", default-features = false, features = [ "r1cs", "snark" ] } 
 ark-scale = { version = "0.0.11", default-features = false, features = ["hazmat"] }
-w3f-bls = { git = "https://github.com/w3f/bls", default-features = false }
+w3f-bls = { version = "0.1.4", default-features = false }
 sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false }
 timelock = { git = "https://github.com/ideal-lab5/timelock", default-features = false }
 

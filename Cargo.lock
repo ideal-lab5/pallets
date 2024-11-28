@@ -535,6 +535,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-transcript"
+version = "0.0.2"
+source = "git+https://github.com/w3f/ring-vrf.git#0fef8266d851932ad25d6b41bc4b34d834d1e11d"
+dependencies = [
+ "ark-ff",
+ "ark-serialize",
+ "ark-std",
+ "digest 0.10.7",
+ "rand_core 0.6.4",
+ "sha3",
+]
+
+[[package]]
 name = "array-bytes"
 version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2090,7 +2103,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "sha3",
- "w3f-bls 0.1.4",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -2118,7 +2131,34 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "sha3",
- "w3f-bls 0.1.4",
+ "w3f-bls",
+]
+
+[[package]]
+name = "etf-crypto-primitives"
+version = "0.2.4"
+source = "git+https://github.com/ideal-lab5/etf-sdk.git?branch=tony/dev#159ed603ca8a31b7d2e5f4437c62411c4d1fd743"
+dependencies = [
+ "aes-gcm",
+ "ark-bls12-377",
+ "ark-bls12-381",
+ "ark-ec",
+ "ark-ff",
+ "ark-poly",
+ "ark-serialize",
+ "ark-std",
+ "array-bytes 6.2.3",
+ "chacha20poly1305",
+ "generic-array 0.14.7",
+ "parity-scale-codec",
+ "rand_chacha 0.3.1",
+ "scale-info",
+ "serde",
+ "serde_cbor",
+ "serde_json",
+ "sha2 0.10.8",
+ "sha3",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -2145,7 +2185,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "sha3",
- "w3f-bls 0.1.4",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -4939,7 +4979,6 @@ dependencies = [
 [[package]]
 name = "murmur-core"
 version = "0.1.0"
-source = "git+https://github.com/ideal-lab5/murmur.git?branch=dev#49f9d1e97c2d1b40dd88295c8cf4231cb408a2f3"
 dependencies = [
  "ark-bls12-377",
  "ark-serialize",
@@ -4951,19 +4990,18 @@ dependencies = [
  "serde",
  "sha3",
  "totp-rs",
- "w3f-bls 0.1.4",
+ "w3f-bls",
  "zeroize",
 ]
 
 [[package]]
 name = "murmur-test-utils"
 version = "0.1.0"
-source = "git+https://github.com/ideal-lab5/murmur.git?branch=dev#49f9d1e97c2d1b40dd88295c8cf4231cb408a2f3"
 dependencies = [
  "ark-serialize",
  "murmur-core",
  "rand_core 0.6.4",
- "w3f-bls 0.1.4",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -5459,7 +5497,7 @@ dependencies = [
  "sp-keystore 0.40.0",
  "sp-runtime 38.0.0",
  "timelock",
- "w3f-bls 0.1.8",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -5538,9 +5576,11 @@ dependencies = [
  "ark-bls12-381",
  "ark-serialize",
  "ark-std",
+ "ark-transcript 0.0.2 (git+https://github.com/w3f/ring-vrf.git)",
  "array-bytes 4.2.0",
  "binary-merkle-tree 15.0.1",
  "ckb-merkle-mountain-range",
+ "env_logger",
  "etf-crypto-primitives 0.2.4 (git+https://github.com/ideal-lab5/etf-sdk.git?branch=dev)",
  "frame-benchmarking 28.0.0",
  "frame-support 28.0.0",
@@ -5562,6 +5602,7 @@ dependencies = [
  "parity-scale-codec",
  "primitive-types 0.12.2",
  "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
  "scale-info",
  "serde",
  "sha3",
@@ -5572,7 +5613,7 @@ dependencies = [
  "sp-staking 26.0.0",
  "sp-state-machine 0.35.0",
  "sp-std 14.0.0 (git+https://github.com/ideal-lab5/polkadot-sdk.git?branch=testing)",
- "w3f-bls 0.1.4",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -5663,7 +5704,7 @@ dependencies = [
  "sp-staking 26.0.0",
  "sp-state-machine 0.35.0",
  "sp-std 14.0.0 (git+https://github.com/ideal-lab5/polkadot-sdk.git?branch=testing)",
- "w3f-bls 0.1.4",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -7318,7 +7359,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
- "w3f-bls 0.1.4",
+ "w3f-bls",
  "wasm-timer",
 ]
 
@@ -7419,7 +7460,7 @@ dependencies = [
  "sp-core 28.0.0",
  "sp-keystore 0.34.0",
  "thiserror",
- "w3f-bls 0.1.4",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -8783,9 +8824,13 @@ dependencies = [
 name = "sp-consensus-beefy-etf"
 version = "13.0.0"
 dependencies = [
+ "ark-serialize",
+ "ark-std",
  "array-bytes 6.2.3",
+ "etf-crypto-primitives 0.2.4 (git+https://github.com/ideal-lab5/etf-sdk.git?branch=tony/dev)",
  "lazy_static",
  "parity-scale-codec",
+ "rand 0.8.5",
  "scale-info",
  "serde",
  "sp-api 26.0.0",
@@ -8797,7 +8842,7 @@ dependencies = [
  "sp-mmr-primitives",
  "sp-runtime 31.0.1",
  "strum 0.24.1",
- "w3f-bls 0.1.4",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -8873,7 +8918,7 @@ dependencies = [
  "substrate-bip39 0.4.7",
  "thiserror",
  "tracing",
- "w3f-bls 0.1.4",
+ "w3f-bls",
  "zeroize",
 ]
 
@@ -8919,7 +8964,7 @@ dependencies = [
  "substrate-bip39 0.6.0",
  "thiserror",
  "tracing",
- "w3f-bls 0.1.4",
+ "w3f-bls",
  "zeroize",
 ]
 
@@ -10377,7 +10422,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "sha3",
- "w3f-bls 0.1.4",
+ "w3f-bls",
 ]
 
 [[package]]
@@ -11006,29 +11051,6 @@ name = "w3f-bls"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c5da5fa2c6afa2c9158eaa7cd9aee249765eb32b5fb0c63ad8b9e79336a47ec"
-dependencies = [
- "ark-bls12-377",
- "ark-bls12-381",
- "ark-ec",
- "ark-ff",
- "ark-serialize",
- "ark-serialize-derive",
- "arrayref",
- "constcat",
- "digest 0.10.7",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "sha3",
- "thiserror",
- "zeroize",
-]
-
-[[package]]
-name = "w3f-bls"
-version = "0.1.8"
-source = "git+https://github.com/w3f/bls#85c4f76a64671c4cfa3ac713983a263f96709f0c"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381",
