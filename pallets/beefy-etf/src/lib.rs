@@ -16,6 +16,9 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
 use codec::{Encode, MaxEncodedLen};
 
 use frame_support::{
@@ -27,7 +30,7 @@ use frame_support::{
 };
 use frame_system::{
 	ensure_none, ensure_signed,
-	pallet_prelude::{BlockNumberFor, OriginFor},
+	pallet_prelude::{BlockNumberFor, HeaderFor, OriginFor},
 };
 use log;
 use sp_runtime::{
@@ -39,9 +42,10 @@ use sp_session::{GetSessionNumber, GetValidatorCount};
 use sp_staking::{offence::OffenceReportSystem, SessionIndex};
 use sp_std::prelude::*;
 
-use sp_consensus_beefy_etf::{
-	AuthorityIndex, BeefyAuthorityId, ConsensusLog, EquivocationProof, OnNewValidatorSet,
-	ValidatorSet, BEEFY_ENGINE_ID, GENESIS_AUTHORITY_SET_ID,
+use sp_consensus_beefy::{
+	AncestryHelper, AncestryHelperWeightInfo, AuthorityIndex, BeefyAuthorityId, ConsensusLog,
+	DoubleVotingProof, ForkVotingProof, FutureBlockVotingProof, OnNewValidatorSet, ValidatorSet,
+	BEEFY_ENGINE_ID, GENESIS_AUTHORITY_SET_ID,
 };
 
 use pallet_etf::RoundCommitmentProvider;
@@ -98,6 +102,10 @@ pub mod pallet {
 		/// externally apart from having it in the storage. For instance you might cache a light
 		/// weight MMR root over validators and make it available for Light Clients.
 		type OnNewValidatorSet: OnNewValidatorSet<<Self as Config>::BeefyId>;
+
+		/// Hook for checking commitment canonicity.
+		type AncestryHelper: AncestryHelper<HeaderFor<Self>>
+			+ AncestryHelperWeightInfo<HeaderFor<Self>>;
 
 		/// Weights for this pallet.
 		type WeightInfo: WeightInfo;

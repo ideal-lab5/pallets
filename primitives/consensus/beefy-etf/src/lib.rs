@@ -51,7 +51,11 @@ use core::fmt::{Debug, Display};
 use scale_info::TypeInfo;
 use sp_application_crypto::{AppCrypto, AppPublic, ByteArray, RuntimeAppPublic};
 use sp_core::H256;
-use sp_runtime::traits::{Hash, Keccak256, NumberFor};
+use sp_runtime::{
+	traits::{Hash, Header as HeaderT, Keccak256, NumberFor},
+	OpaqueValue,
+};
+use sp_weights::Weight;
 
 /// Key type for BEEFY module.
 pub const KEY_TYPE: sp_core::crypto::KeyTypeId = sp_application_crypto::key_types::BEEFY;
@@ -329,18 +333,20 @@ pub struct VoteMessage<Number, Id, Signature> {
 	pub signature: Signature,
 }
 
-/// Proof of voter misbehavior on a given set id. Misbehavior/equivocation in
-/// BEEFY happens when a voter votes on the same round/block for different payloads.
+/// Proof showing that an authority voted twice in the same round.
+///
+/// One type of misbehavior in BEEFY happens when an authority votes in the same round/block
+/// for different payloads.
 /// Proving is achieved by collecting the signed commitments of conflicting votes.
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
-pub struct EquivocationProof<Number, Id, Signature> {
+pub struct DoubleVotingProof<Number, Id, Signature> {
 	/// The first vote in the equivocation.
 	pub first: VoteMessage<Number, Id, Signature>,
 	/// The second vote in the equivocation.
 	pub second: VoteMessage<Number, Id, Signature>,
 }
 
-impl<Number, Id, Signature> EquivocationProof<Number, Id, Signature> {
+impl<Number, Id, Signature> DoubleVotingProof<Number, Id, Signature> {
 	/// Returns the authority id of the equivocator.
 	pub fn offender_id(&self) -> &Id {
 		&self.first.id
@@ -353,6 +359,40 @@ impl<Number, Id, Signature> EquivocationProof<Number, Id, Signature> {
 	pub fn set_id(&self) -> ValidatorSetId {
 		self.first.commitment.validator_set_id
 	}
+}
+
+/// Proof showing that an authority voted for a non-canonical chain.
+///
+/// Proving is achieved by providing a proof that contains relevant info about the canonical chain
+/// at `commitment.block_number`. The `commitment` can be checked against this info.
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct ForkVotingProof<Header: HeaderT, Id: RuntimeAppPublic, AncestryProof> {
+	/// The equivocated vote.
+	pub vote: VoteMessage<Header::Number, Id, Id::Signature>,
+	/// Proof containing info about the canonical chain at `commitment.block_number`.
+	pub ancestry_proof: AncestryProof,
+	/// The header of the block where the ancestry proof was generated
+	pub header: Header,
+}
+
+impl<Header: HeaderT, Id: RuntimeAppPublic> ForkVotingProof<Header, Id, OpaqueValue> {
+	/// Try to decode the `AncestryProof`.
+	pub fn try_into<AncestryProof: Decode>(
+		self,
+	) -> Option<ForkVotingProof<Header, Id, AncestryProof>> {
+		Some(ForkVotingProof::<Header, Id, AncestryProof> {
+			vote: self.vote,
+			ancestry_proof: self.ancestry_proof.decode()?,
+			header: self.header,
+		})
+	}
+}
+
+/// Proof showing that an authority voted for a future block.
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct FutureBlockVotingProof<Number, Id: RuntimeAppPublic> {
+	/// The equivocated vote.
+	pub vote: VoteMessage<Number, Id, Id::Signature>,
 }
 
 /// Check a commitment signature by encoding the commitment and
@@ -373,8 +413,8 @@ where
 
 /// Verifies the equivocation proof by making sure that both votes target
 /// different blocks and that its signatures are valid.
-pub fn check_equivocation_proof<Number, Id, MsgHash>(
-	report: &EquivocationProof<Number, Id, <Id as RuntimeAppPublic>::Signature>,
+pub fn check_double_voting_proof<Number, Id, MsgHash>(
+	report: &DoubleVotingProof<Number, Id, <Id as RuntimeAppPublic>::Signature>,
 ) -> bool
 where
 	Id: BeefyAuthorityId<MsgHash> + PartialEq,
@@ -420,27 +460,48 @@ impl<AuthorityId> OnNewValidatorSet<AuthorityId> for () {
 	fn on_new_validator_set(_: &ValidatorSet<AuthorityId>, _: &ValidatorSet<AuthorityId>) {}
 }
 
+/// Hook containing helper methods for proving/checking commitment canonicity.
+pub trait AncestryHelper<Header: HeaderT> {
+	/// Type containing proved info about the canonical chain at a certain height.
+	type Proof: Clone + Debug + Decode + Encode + PartialEq + TypeInfo;
+	/// The data needed for validating the proof.
+	type ValidationContext;
+
+	/// Generates a proof that the `prev_block_number` is part of the canonical chain at
+	/// `best_known_block_number`.
+	fn generate_proof(
+		prev_block_number: Header::Number,
+		best_known_block_number: Option<Header::Number>,
+	) -> Option<Self::Proof>;
+
+	/// Extract the validation context from the provided header.
+	fn extract_validation_context(header: Header) -> Option<Self::ValidationContext>;
+
+	/// Check if a commitment is pointing to a header on a non-canonical chain
+	/// against a canonicity proof generated at the same header height.
+	fn is_non_canonical(
+		commitment: &Commitment<Header::Number>,
+		proof: Self::Proof,
+		context: Self::ValidationContext,
+	) -> bool;
+}
+
+/// Weight information for the logic in `AncestryHelper`.
+pub trait AncestryHelperWeightInfo<Header: HeaderT>: AncestryHelper<Header> {
+	/// Weight info for the `AncestryHelper::extract_validation_context()` method.
+	fn extract_validation_context() -> Weight;
+
+	/// Weight info for the `AncestryHelper::is_non_canonical()` method.
+	fn is_non_canonical(proof: &<Self as AncestryHelper<Header>>::Proof) -> Weight;
+}
+
 /// An opaque type used to represent the key ownership proof at the runtime API
 /// boundary. The inner value is an encoded representation of the actual key
 /// ownership proof which will be parameterized when defining the runtime. At
 /// the runtime API boundary this type is unknown and as such we keep this
 /// opaque representation, implementors of the runtime API will have to make
 /// sure that all usages of `OpaqueKeyOwnershipProof` refer to the same type.
-#[derive(Decode, Encode, PartialEq, TypeInfo)]
-pub struct OpaqueKeyOwnershipProof(Vec<u8>);
-impl OpaqueKeyOwnershipProof {
-	/// Create a new `OpaqueKeyOwnershipProof` using the given encoded
-	/// representation.
-	pub fn new(inner: Vec<u8>) -> OpaqueKeyOwnershipProof {
-		OpaqueKeyOwnershipProof(inner)
-	}
-
-	/// Try to decode this `OpaqueKeyOwnershipProof` into the given concrete key
-	/// ownership proof type.
-	pub fn decode<T: Decode>(self) -> Option<T> {
-		codec::Decode::decode(&mut &self.0[..]).ok()
-	}
-}
+pub type OpaqueKeyOwnershipProof = OpaqueValue;
 
 sp_api::decl_runtime_apis! {
 	/// API necessary for BEEFY voters.
@@ -454,17 +515,45 @@ sp_api::decl_runtime_apis! {
 		/// Return the current active BEEFY validator set
 		fn validator_set() -> Option<ValidatorSet<AuthorityId>>;
 
-		/// Submits an unsigned extrinsic to report an equivocation. The caller
-		/// must provide the equivocation proof and a key ownership proof
+		/// Submits an unsigned extrinsic to report a double voting equivocation. The caller
+		/// must provide the double voting proof and a key ownership proof
 		/// (should be obtained using `generate_key_ownership_proof`). The
 		/// extrinsic will be unsigned and should only be accepted for local
 		/// authorship (not to be broadcast to the network). This method returns
 		/// `None` when creation of the extrinsic fails, e.g. if equivocation
 		/// reporting is disabled for the given runtime (i.e. this method is
 		/// hardcoded to return `None`). Only useful in an offchain context.
-		fn submit_report_equivocation_unsigned_extrinsic(
+		fn submit_report_double_voting_unsigned_extrinsic(
 			equivocation_proof:
-				EquivocationProof<NumberFor<Block>, AuthorityId, <AuthorityId as RuntimeAppPublic>::Signature>,
+				DoubleVotingProof<NumberFor<Block>, AuthorityId, <AuthorityId as RuntimeAppPublic>::Signature>,
+			key_owner_proof: OpaqueKeyOwnershipProof,
+		) -> Option<()>;
+
+		/// Submits an unsigned extrinsic to report a fork voting equivocation. The caller
+		/// must provide the fork voting proof (the ancestry proof should be obtained using
+		/// `generate_ancestry_proof`) and a key ownership proof (should be obtained using
+		/// `generate_key_ownership_proof`). The extrinsic will be unsigned and should only
+		/// be accepted for local authorship (not to be broadcast to the network). This method
+		/// returns `None` when creation of the extrinsic fails, e.g. if equivocation
+		/// reporting is disabled for the given runtime (i.e. this method is
+		/// hardcoded to return `None`). Only useful in an offchain context.
+		fn submit_report_fork_voting_unsigned_extrinsic(
+			equivocation_proof:
+				ForkVotingProof<Block::Header, AuthorityId, OpaqueValue>,
+			key_owner_proof: OpaqueKeyOwnershipProof,
+		) -> Option<()>;
+
+		/// Submits an unsigned extrinsic to report a future block voting equivocation. The caller
+		/// must provide the future block voting proof and a key ownership proof
+		/// (should be obtained using `generate_key_ownership_proof`).
+		/// The extrinsic will be unsigned and should only be accepted for local
+		/// authorship (not to be broadcast to the network). This method returns
+		/// `None` when creation of the extrinsic fails, e.g. if equivocation
+		/// reporting is disabled for the given runtime (i.e. this method is
+		/// hardcoded to return `None`). Only useful in an offchain context.
+		fn submit_report_future_block_voting_unsigned_extrinsic(
+			equivocation_proof:
+				FutureBlockVotingProof<NumberFor<Block>, AuthorityId>,
 			key_owner_proof: OpaqueKeyOwnershipProof,
 		) -> Option<()>;
 

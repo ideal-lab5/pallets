@@ -77,6 +77,7 @@ pub mod justification;
 
 use crate::{
 	communication::{gossip::GossipValidator, peers::PeerReport},
+	fisherman::Fisherman,
 	justification::BeefyVersionedFinalityProof,
 	keystore::BeefyKeystore,
 	metrics::VoterMetrics,
@@ -89,6 +90,7 @@ pub use communication::beefy_protocol_name::{
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_runtime::generic::OpaqueDigestItemId;
 
+mod fisherman;
 #[cfg(test)]
 mod tests;
 
