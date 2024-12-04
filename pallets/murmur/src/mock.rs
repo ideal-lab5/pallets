@@ -18,8 +18,9 @@ use super::*;
 use std::vec;
 
 use crate as pallet_murmur;
-use codec::Encode;
 use ark_serialize::CanonicalDeserialize;
+use ark_transcript::{digest::Update, Transcript};
+use codec::Encode;
 use etf_crypto_primitives::encryption::tlock::{DecryptionResult, TLECiphertext};
 use frame_support::{
 	construct_runtime, derive_impl, parameter_types,
@@ -39,7 +40,6 @@ use sp_runtime::{
 };
 use sp_state_machine::BasicExternalities;
 use w3f_bls::TinyBLS377;
-use ark_transcript::{digest::Update, Transcript};
 
 pub use sp_consensus_beefy_etf::bls_crypto::AuthorityId as BeefyId;
 
@@ -91,20 +91,22 @@ impl TimelockEncryptionProvider<u64> for DummyTlockProvider {
 		bytes: &[u8],
 		when: u64,
 	) -> Result<DecryptionResult, pallet_randomness_beacon::TimelockError> {
-		let seed = vec![1,2,3];
+		let seed = vec![1, 2, 3];
 
 		let mut transcript = Transcript::new_labeled(murmur_core::murmur::MURMUR_PROTO_OTP);
 		transcript.write_bytes(&seed);
 		let nonce: u64 = 0;
 		transcript.write_bytes(&nonce.to_be_bytes());
-	
-		let ephemeral_msk: Vec<u8> = vec![10, 124, 150, 208, 196, 211, 212, 13, 177, 116, 154, 11, 235, 242, 139, 2, 187, 80, 52, 58, 125, 72, 184, 194, 165, 119, 212, 134, 171, 185, 191, 101];
+
+		let ephemeral_msk: Vec<u8> = vec![
+			10, 124, 150, 208, 196, 211, 212, 13, 177, 116, 154, 11, 235, 242, 139, 2, 187, 80, 52,
+			58, 125, 72, 184, 194, 165, 119, 212, 134, 171, 185, 191, 101,
+		];
 
 		let ciphertext: TLECiphertext<TinyBLS377> =
 			TLECiphertext::deserialize_compressed(&mut &bytes[..]).unwrap();
 
-		let otp = ciphertext
-			.aes_decrypt(ephemeral_msk.as_slice().to_vec()).unwrap();
+		let otp = ciphertext.aes_decrypt(ephemeral_msk.as_slice().to_vec()).unwrap();
 
 		Ok(DecryptionResult { message: otp.message, secret: [2; 32] })
 	}

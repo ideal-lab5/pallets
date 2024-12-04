@@ -68,6 +68,7 @@ use verifier::Verifier;
 
 const USAGE: ark_scale::Usage = ark_scale::WIRE;
 pub type ArkScale<T> = ark_scale::ArkScale<T, USAGE>;
+pub type RandomValue = [u8; 32];
 
 #[cfg(test)]
 mod mock;
@@ -502,13 +503,21 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// get the randomness at a specific block height
-	/// returns [0u8;32] if it does not exist
-	pub fn random_at(block_number: BlockNumberFor<T>) -> [u8; 32] {
-		let pulse = Pulses::<T>::get(block_number).unwrap_or_default();
-		let rand = pulse.randomness.clone();
-		let bounded_rand: [u8; 32] = rand.into_inner().try_into().unwrap_or([0u8; 32]);
-
-		bounded_rand
+	/// returns None if it is invalid or does not exist
+	pub fn random_at(block_number: BlockNumberFor<T>) -> Option<RandomValue> {
+		match Pulses::<T>::get(block_number) {
+			Some(pulse) => {
+				let rand = pulse.randomness.into_inner();
+				if rand.len() == 32 {
+					let mut array = [0u8; 32];
+					array.copy_from_slice(&rand);
+					Some(array)
+				} else {
+					None // this should never happen
+				}
+			},
+			None => None,
+		}
 	}
 
 	fn validate_signature_and_parameters(
