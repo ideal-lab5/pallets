@@ -505,18 +505,10 @@ impl<T: Config> Pallet<T> {
 	/// get the randomness at a specific block height
 	/// returns None if it is invalid or does not exist
 	pub fn random_at(block_number: BlockNumberFor<T>) -> Option<RandomValue> {
-		match Pulses::<T>::get(block_number) {
-			Some(pulse) => {
-				let rand = pulse.randomness.into_inner();
-				if rand.len() == 32 {
-					let mut array = [0u8; 32];
-					array.copy_from_slice(&rand);
-					Some(array)
-				} else {
-					None // this should never happen
-				}
-			},
-			None => None,
+		if let Some(pulse) = Pulses::<T>::get(block_number) {
+			pulse.randomness.into_inner().try_into().ok()
+		} else {
+			None
 		}
 	}
 
