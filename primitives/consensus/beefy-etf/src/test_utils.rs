@@ -168,7 +168,8 @@ pub fn generate_equivocation_proof(
 }
 
 /// Helper function to prepare initial secrets and resharing for ETF conensus
-/// return a vec of (authority id, resharing, pubkey commitment) along with ibe public key against the master secret
+/// return a vec of (authority id, resharing, pubkey commitment) along with ibe public key against
+/// the master secret
 pub fn etf_genesis<E: EngineBLS>(
 	initial_authorities: Vec<BeefyId>,
 ) -> (Vec<u8>, Vec<(BeefyId, Vec<u8>)>) {

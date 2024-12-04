@@ -147,7 +147,6 @@ pub mod pallet {
 		/// * `size`: The size (number of leaves) of the MMR
 		/// * `proof`: A (serialized) DLEQ proof
 		/// * `public_key`: A (serialized) public key associated with the DLEQ
-		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(0)]
 		pub fn create(
@@ -206,7 +205,6 @@ pub mod pallet {
 		/// * `root`: The MMR root
 		/// * `size`: The size (number of leaves) of the MMR
 		/// * `proof`: A (serialized) DLEQ proof
-		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(1)]
 		pub fn update(
@@ -252,7 +250,6 @@ pub mod pallet {
 		///   position
 		/// * `size`: The size of the Merkle proof
 		/// * `call`: The call to be proxied
-		///
 		#[pallet::weight(0)]
 		#[pallet::call_index(2)]
 		pub fn proxy(
