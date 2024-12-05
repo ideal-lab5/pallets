@@ -18,10 +18,10 @@
 // #[cfg(feature = "bls-experimental")]
 // use crate::bls_bls_crypto;
 use crate::{
-	bls_crypto, AuthorityIdBound, BeefySignatureHasher, Commitment, EquivocationProof, Payload,
-	ValidatorSetId, VoteMessage, bls_crypto::{AuthorityId as BeefyId},
+	bls_crypto, bls_crypto::AuthorityId as BeefyId, AuthorityIdBound, BeefySignatureHasher,
+	Commitment, EquivocationProof, Payload, ValidatorSetId, VoteMessage,
 };
-use sp_application_crypto::{AppCrypto, AppPair, RuntimeAppPublic, Wraps, UncheckedFrom};
+use sp_application_crypto::{AppCrypto, AppPair, RuntimeAppPublic, UncheckedFrom, Wraps};
 use sp_core::{bls377, Pair};
 use sp_runtime::traits::Hash;
 
@@ -31,10 +31,7 @@ use strum::IntoEnumIterator;
 
 use ark_serialize::CanonicalSerialize;
 use ark_std::UniformRand;
-use etf_crypto_primitives::{
-	proofs::hashed_el_gamal_sigma::BatchPoK,
-	dpss::acss::DoubleSecret
-};
+use etf_crypto_primitives::{dpss::acss::DoubleSecret, proofs::hashed_el_gamal_sigma::BatchPoK};
 use rand::rngs::OsRng;
 use w3f_bls::{DoublePublicKey, DoublePublicKeyScheme, EngineBLS, SerializableToBytes, TinyBLS377};
 
@@ -171,7 +168,8 @@ pub fn generate_equivocation_proof(
 }
 
 /// Helper function to prepare initial secrets and resharing for ETF conensus
-/// return a vec of (authority id, resharing, pubkey commitment) along with ibe public key against the master secret
+/// return a vec of (authority id, resharing, pubkey commitment) along with ibe public key against
+/// the master secret
 pub fn etf_genesis<E: EngineBLS>(
 	initial_authorities: Vec<BeefyId>,
 ) -> (Vec<u8>, Vec<(BeefyId, Vec<u8>)>) {

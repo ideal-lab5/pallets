@@ -1,5 +1,10 @@
 repos:
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
+  - repo: local
     hooks:
-      - id: fmt
+      -   id: fmt
+          name: fmt
+          description: Format files with cargo fmt.
+          entry: cargo +nightly fmt -- --check
+          language: system
+          files: \.rs$
+          args: []

@@ -325,3 +325,50 @@ fn can_execute_and_handle_valid_http_responses() {
 		assert_eq!(actual_pulse, DRAND_RESPONSE);
 	});
 }
+
+#[test]
+fn test_random_at_existing_pulse() {
+	new_test_ext().execute_with(|| {
+		// Set up the test environment
+		let block_number = 1;
+		let pulse = mock_pulse(vec![1; 32]);
+		Pulses::<Test>::insert(block_number, pulse);
+
+		// Call the function
+		let result = Drand::random_at(block_number);
+
+		// Check the result
+		assert_eq!(result, Some([1; 32]));
+	});
+}
+
+#[test]
+fn test_random_at_non_existing_pulse() {
+	new_test_ext().execute_with(|| {
+		// Set up the test environment
+		let block_number = 1;
+
+		// Call the function
+		let result = Drand::random_at(block_number);
+
+		// Check the result
+		assert_eq!(result, None);
+	});
+}
+
+#[test]
+fn test_random_at_invalid_pulse() {
+	new_test_ext().execute_with(|| {
+		// Set up the test environment
+		let block_number = 1;
+
+		let pulse = mock_pulse(vec![1; 31]); // Invalid length
+		Pulses::<Test>::insert(block_number, pulse);
+
+		// Call the function
+		let result = Drand::random_at(block_number);
+
+		// Check the result
+		assert_eq!(result, None);
+	});
+}

@@ -520,7 +520,7 @@ where
 	) -> Result<(), Error> {
 		let block_num = vote.commitment.block_number;
 		match self.voting_oracle().triage_round(block_num)? {
-			RoundAction::Process => {
+			RoundAction::Process =>
 				if let Some(finality_proof) = self.handle_vote(vote)? {
 					let gossip_proof = GossipMessage::<B>::FinalityProof(finality_proof);
 					let encoded_proof = gossip_proof.encode();
@@ -529,8 +529,7 @@ where
 						encoded_proof,
 						true,
 					);
-				}
-			},
+				},
 			RoundAction::Drop => metric_inc!(self.metrics, beefy_stale_votes),
 			RoundAction::Enqueue => error!(target: LOG_TARGET, "🥩 unexpected vote: {:?}.", vote),
 		};

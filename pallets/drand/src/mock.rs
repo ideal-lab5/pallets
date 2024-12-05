@@ -110,3 +110,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	.expect("Creating key with account Alice should succeed.");
 	ext
 }
+
+pub fn mock_pulse(randomness: Vec<u8>) -> Pulse {
+	Pulse {
+		round: 1,
+		randomness: BoundedVec::try_from(randomness).expect("Randomness should fit in BoundedVec"),
+		signature: BoundedVec::try_from(vec![0u8; 144])
+			.expect("Signature should fit in BoundedVec"),
+	}
+}
