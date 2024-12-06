@@ -276,15 +276,6 @@ fn test_not_validate_unsigned_write_pulse_with_no_payload_signature() {
 
 #[test]
 #[ignore]
-fn test_validate_unsigned_write_pulse_by_non_authority() {
-	// TODO: https://github.com/ideal-lab5/idn-sdk/issues/3
-	todo!(
-		"the transaction should be validated even if the signer of the payload is not an authority"
-	);
-}
-
-#[test]
-#[ignore]
 fn test_not_validate_unsigned_set_beacon_config_by_non_autority() {
 	// TODO: https://github.com/ideal-lab5/idn-sdk/issues/3
 	todo!(

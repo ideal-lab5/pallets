@@ -36,7 +36,7 @@ sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "re
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false}
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-crates-io-v1.14.0",  default-features = false}
 # arkworks dependencies
-sp-ark-bls12-381 = { git = "https://github.com/paritytech/substrate-curves", default-features = false }
+sp-ark-bls12-381 = { git = "https://github.com/paritytech/substrate-curves", default-features = false, optional = true }
 ark-bls12-381 = { version = "0.4.0", features = ["curve"], default-features = false }
 ark-serialize = { version = "0.4.0", features = [ "derive" ], default-features = false }
 ark-ff = { version = "0.4.0", default-features = false }
@@ -91,3 +91,4 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+host-arkworks = ["sp-ark-bls12-381"]

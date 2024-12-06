@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
+#[cfg(not(feature = "host-arkworks"))]
+use ark_bls12_381::{Bls12_381 as Bls12_381Opt, G1Affine as G1AffineOpt, G2Affine as G2AffineOpt};
 use ark_ec::pairing::Pairing;
 use ark_std::{ops::Neg, Zero};
+#[cfg(feature = "host-arkworks")]
 use sp_ark_bls12_381::{
 	Bls12_381 as Bls12_381Opt, G1Affine as G1AffineOpt, G2Affine as G2AffineOpt,
 };
