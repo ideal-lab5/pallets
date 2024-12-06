@@ -11,7 +11,6 @@ Use this pallet in a Substrate runtime to acquire verifiable randomness from dra
 ### Node Requirements
 
 Usage of this pallet requires that the node support:
-- arkworks host functions
 - offchain workers
 - (optional - in case of smart contracts) Contracts pallet and drand  chain extension enabled 
 

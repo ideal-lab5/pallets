@@ -66,8 +66,6 @@ pub mod verifier;
 use types::*;
 use verifier::Verifier;
 
-const USAGE: ark_scale::Usage = ark_scale::WIRE;
-pub type ArkScale<T> = ark_scale::ArkScale<T, USAGE>;
 pub type RandomValue = [u8; 32];
 
 #[cfg(test)]

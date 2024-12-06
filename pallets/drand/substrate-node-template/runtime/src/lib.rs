@@ -289,14 +289,15 @@ impl pallet_sudo::Config for Runtime {
 parameter_types! {
 	pub const UnsignedPriority: u64 = 1 << 20;
 	pub const ApiEndpoint: &'static str = "https://drand.cloudflare.com";
+	pub const HttpFetchTimeout: u64 = 1_000;
 }
 
 impl pallet_drand::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_drand::weights::SubstrateWeight<Runtime>;
 	type AuthorityId = pallet_drand::crypto::TestAuthId;
-	type UnsignedPriority = ConstU64<{ 1 << 20 }>;
-	type HttpFetchTimeout = ConstU64<1_000>;
+	type UnsignedPriority = UnsignedPriority;
+	type HttpFetchTimeout = HttpFetchTimeout;
 	type Verifier = pallet_drand::verifier::QuicknetVerifier;
 	type ApiEndpoint = ApiEndpoint;
 }

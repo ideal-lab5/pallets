@@ -83,6 +83,7 @@ where
 parameter_types! {
 	pub const UnsignedPriority: u64 = 1 << 20;
 	pub const ApiEndpoint: &'static str = "http://api";
+	pub const HttpFetchTimeout: u64 = 1_000;
 }
 
 impl pallet_drand_bridge::Config for Test {
@@ -91,7 +92,7 @@ impl pallet_drand_bridge::Config for Test {
 	type WeightInfo = pallet_drand_bridge::weights::SubstrateWeight<Test>;
 	type Verifier = QuicknetVerifier;
 	type UnsignedPriority = UnsignedPriority;
-	type HttpFetchTimeout = ConstU64<1_000>;
+	type HttpFetchTimeout = HttpFetchTimeout;
 	type ApiEndpoint = ApiEndpoint;
 }
 
