@@ -55,6 +55,11 @@ scale-info = { version = "2.10.0", default-features = false, features = [
 	"serde",
 ] }
 log = { version = "0.4.21", default-features = false }
+clap = "4.5.23"
+quote = "1.0.37"
+futures = "0.3.31"
+serde_json = { version = "1.0.133", default-features = true }
+jsonrpsee = "0.24.7"
 
 # frame
 frame-support = { version = "38.0.0",  default-features = false, features = ["experimental"] }
@@ -69,7 +74,9 @@ frame = { package = "polkadot-sdk-frame", version = "0.7.0", default-features = 
 frame-system-rpc-runtime-api = { version = "34.0.0",  default-features = false }
 # Used for runtime benchmarking
 frame-benchmarking = { version = "38.0.0",  default-features = false }
+frame-benchmarking-cli = "43.0.0"
 frame-system-benchmarking = { version = "38.0.0",  default-features = false }
+substrate-frame-rpc-system = "39.0.0"
 
 # frame pallets
 pallet-aura = { version = "37.0.0",  default-features = false }
@@ -81,6 +88,7 @@ pallet-sudo = { version = "38.0.0",  default-features = false }
 pallet-timestamp = { version = "37.0.0",  default-features = false }
 pallet-transaction-payment = { version = "38.0.0",  default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "38.0.0",  default-features = false }
+pallet-transaction-payment-rpc = "41.0.0"
 # The pallet in this template.
 pallet-drand = { path = "../../", default-features = false, features = ["host-arkworks"]}
 
@@ -101,3 +109,29 @@ sp-version = { version = "37.0.0",  default-features = false, features = [
 	"serde",
 ] }
 sp-genesis-builder = { default-features = false, version = "0.15.1" }
+sp-wasm-interface = "21.0.1"
+sp-io = "38.0.0"
+sp-timestamp = "34.0.0"
+sp-keyring = "39.0.0"
+sp-keystore = "0.40.0"
+sp-blockchain = "37.0.1"
+sp-crypto-ec-utils = "0.14.0"
+
+# substrate client
+sc-cli = "0.47.0"
+sc-executor = "0.40.1"
+sc-network = "0.45.1"
+sc-service = "0.46.0"
+sc-telemetry = "25.0.0"
+sc-transaction-pool = "37.0.0"
+sc-transaction-pool-api = "37.0.0"
+sc-offchain = "40.0.0"
+sc-consensus-aura = "0.45.0"
+sc-consensus = "0.44.0"
+sc-consensus-grandpa = "0.30.0"
+sc-client-api = "37.0.0"
+sc-rpc-api = "0.44.0"
+sc-basic-authorship = "0.45.0"
+
+# Local Dependencies
+drand-example-runtime = { path = "runtime" }
