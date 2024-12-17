@@ -14,7 +14,7 @@ Usage of this pallet requires that the node support:
 - offchain workers
 - (optional - in case of smart contracts) Contracts pallet and drand  chain extension enabled 
 
-We have included a node in this repo, [substrate-node-template](https://github.com/ideal-lab5/idn-sdk/tree/main/pallets/drand/substrate-node-template), that meets these requirements that you can use to get started.
+We have included an example [solochain](https://github.com/ideal-lab5/idn-sdk/tree/main/pallets/drand/examples/solochain) in this repo, that meets these requirements that you can use to get started.
 
 See [here](https://github.com/ideal-lab5/idn-sdk/blob/main/pallets/drand/docs/integration.md) for a detailed guide on integrating this pallet into a runtime.
 
@@ -37,7 +37,7 @@ For example, the [lottery pallet](https://github.com/paritytech/polkadot-sdk/blo
 
 ### For Smart Contracts
 
-Add a [chain extension](https://use.ink/macros-attributes/chain-extension/) to your runtime to expose the drand pallet's randomness. An example can be found in the template [here](https://github.com/ideal-lab5/idn-sdk/blob/a8c71dfb9bcd198cfac1071eb37328676ac4f959/pallets/drand/substrate-node-template/runtime/src/lib.rs#L851). and then follow the guide [here](https://github.com/ideal-lab5/contracts). The [template contract](https://github.com/ideal-lab5/contracts/tree/main/template) provides a minimal working example.
+Add a [chain extension](https://use.ink/macros-attributes/chain-extension/) to your runtime to expose the drand pallet's randomness. An example can be found in [here](https://github.com/ideal-lab5/idn-sdk/blob/main/pallets/drand/examples/solochain) and then follow the guide [here](https://github.com/ideal-lab5/contracts). The [template contract](https://github.com/ideal-lab5/contracts/tree/main/template) provides a minimal working example.
 
 ## Building
 
@@ -61,14 +61,14 @@ cargo test
 
 ### Benchmarks
 
-The pallet can be benchmarked with a substrate node that adds the pallet to it's runtime, such as the substrate-node-template example included in this repo.
+The pallet can be benchmarked with a substrate node that adds the pallet to it's runtime, such as the solochain example included in this repo.
 
 ``` shell
-cd substrate-node-template
+cd examples/solochain
 # build the node with benchmarks enables
 cargo build --release --features runtime-benchmarks
 # run the pallet benchmarks
-./target/release/node-template benchmark pallet \
+./target/release/drand-example-node benchmark pallet \
     --chain dev \
     --wasm-execution=compiled \
     --pallet pallet_drand \

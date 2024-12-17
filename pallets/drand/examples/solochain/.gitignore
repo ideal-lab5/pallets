@@ -11,3 +11,4 @@
 .direnv
 
 .vscode/settings.json
+!Cargo.lock
