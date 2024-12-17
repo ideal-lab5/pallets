@@ -14,10 +14,10 @@ RUN rustup component add rust-src --toolchain 1.79.0-x86_64-unknown-linux-gnu
 RUN cargo +1.79.0 build --release
 
 FROM ubuntu:22.04
-WORKDIR /node-template
+WORKDIR /drand-example-node
 
 # Copy the node binary.
-COPY --from=build /code/target/release/node-template .
+COPY --from=build /code/target/release/drand-example-node .
 
 # Install root certs, see: https://github.com/paritytech/substrate/issues/9984
 RUN apt update && \
@@ -29,5 +29,4 @@ RUN apt update && \
 EXPOSE 9944
 # Exposing unsafe RPC methods is needed for testing but should not be done in
 # production.
-#CMD [ "./node-template", "--dev", "--ws-external", "--rpc-external"]
-ENTRYPOINT ["./node-template"]
+ENTRYPOINT ["./drand-example-node"]

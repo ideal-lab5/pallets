@@ -22,16 +22,12 @@
 
 #![warn(missing_docs)]
 
+use drand_example_runtime::interface::{AccountId, Nonce, OpaqueBlock};
 use jsonrpsee::RpcModule;
-use node_template_runtime::interface::{AccountId, Nonce, OpaqueBlock};
-use polkadot_sdk::{
-	sc_transaction_pool_api::TransactionPool,
-	sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata},
-	*,
-};
+use sc_transaction_pool_api::TransactionPool;
+use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use std::sync::Arc;
-
-pub use sc_rpc_api::DenyUnsafe;
+use substrate_frame_rpc_system::{System, SystemApiServer};
 
 /// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -39,8 +35,6 @@ pub struct FullDeps<C, P> {
 	pub client: Arc<C>,
 	/// Transaction pool instance.
 	pub pool: Arc<P>,
-	/// Whether to deny unsafe calls
-	pub deny_unsafe: DenyUnsafe,
 }
 
 /// Instantiate all full RPC extensions.
@@ -59,11 +53,10 @@ where
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<OpaqueBlock, AccountId, Nonce>,
 	P: TransactionPool + 'static,
 {
-	use polkadot_sdk::substrate_frame_rpc_system::{System, SystemApiServer};
 	let mut module = RpcModule::new(());
-	let FullDeps { client, pool, deny_unsafe } = deps;
+	let FullDeps { client, pool } = deps;
 
-	module.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
+	module.merge(System::new(client.clone(), pool.clone()).into_rpc())?;
 
 	Ok(module)
 }

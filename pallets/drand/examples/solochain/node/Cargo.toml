@@ -1,0 +1,88 @@
+[package]
+name = "drand-example-node"
+description = "An example node implementing the Drand pallet."
+version = "0.0.0"
+license = "MIT-0"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+publish = false
+
+build = "build.rs"
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+quote.workspace = true
+futures = { workspace = true, features = ["thread-pool"] }
+serde_json.workspace = true
+jsonrpsee = { workspace = true, features = ["server"] }
+# substrate client
+sc-cli.workspace = true
+sc-executor.workspace = true
+sc-network.workspace = true
+sc-service.workspace = true
+sc-telemetry.workspace = true
+sc-transaction-pool.workspace = true
+sc-transaction-pool-api.workspace = true
+sc-offchain.workspace = true
+sc-consensus-aura.workspace = true
+sc-consensus.workspace = true
+sc-consensus-grandpa.workspace = true
+sc-client-api.workspace = true
+sc-rpc-api.workspace = true
+sc-basic-authorship.workspace = true
+# substrate primitives
+sp-consensus-aura.workspace = true
+sp-consensus-grandpa.workspace = true
+sp-core.workspace = true
+sp-runtime.workspace = true
+sp-inherents.workspace = true
+sp-api.workspace = true
+sp-block-builder.workspace = true
+sp-wasm-interface.workspace = true
+sp-io.workspace = true
+sp-timestamp.workspace = true
+sp-keyring.workspace = true
+sp-keystore.workspace = true
+sp-blockchain.workspace = true
+sp-crypto-ec-utils = { workspace = true,  features = ["bls12-381"]}
+# frame and pallets
+frame-system.workspace = true
+pallet-transaction-payment.workspace = true
+pallet-transaction-payment-rpc.workspace = true
+substrate-frame-rpc-system.workspace = true
+# These dependencies are used for runtime benchmarking
+frame-benchmarking.workspace = true
+frame-benchmarking-cli.workspace = true
+# Local Dependencies
+drand-example-runtime.workspace = true
+
+[build-dependencies]
+substrate-build-script-utils = "11.0.0"
+
+[features]
+default = ["std"]
+std = []
+# Dependencies that are only required if runtime benchmarking should be build.
+runtime-benchmarks = [
+	"frame-benchmarking-cli/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sc-service/runtime-benchmarks",
+	"drand-example-runtime/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+# Enable features that allow the runtime to be tried and debugged. Name might be subject to change
+# in the near future.
+try-runtime = [
+	"frame-system/try-runtime",
+	"pallet-transaction-payment/try-runtime",
+	"drand-example-runtime/try-runtime",
+	"sp-runtime/try-runtime",
+]

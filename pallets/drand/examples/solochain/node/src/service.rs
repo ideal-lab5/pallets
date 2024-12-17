@@ -1,11 +1,11 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
+use drand_example_runtime::{self, opaque::Block, RuntimeApi};
 use futures::FutureExt;
-use node_template_runtime::{self, opaque::Block, RuntimeApi};
 use sc_client_api::{Backend, BlockBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_grandpa::SharedVoterState;
-use sc_service::{error::Error as ServiceError, Configuration, TaskManager, WarpSyncParams};
+use sc_service::{error::Error as ServiceError, Configuration, TaskManager, WarpSyncConfig};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
@@ -60,7 +60,7 @@ pub fn new_partial(config: &Configuration) -> Result<Service, ServiceError> {
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_wasm_executor::<HostFunctions>(config);
+	let executor = sc_service::new_wasm_executor::<HostFunctions>(&config.executor);
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, RuntimeExecutor>(
 			config,
@@ -156,7 +156,7 @@ pub fn new_full<
 		Block,
 		<Block as sp_runtime::traits::Block>::Hash,
 		N,
-	>::new(&config.network);
+	>::new(&config.network, config.prometheus_registry().cloned());
 	let metrics = N::register_notification_metrics(config.prometheus_registry());
 
 	let peer_store_handle = net_config.peer_store_handle();
@@ -187,7 +187,7 @@ pub fn new_full<
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
-			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
+			warp_sync_config: Some(WarpSyncConfig::WithProvider(warp_sync)),
 			block_relay: None,
 			metrics,
 		})?;
@@ -195,7 +195,7 @@ pub fn new_full<
 	if config.offchain_worker.enabled {
 		sp_keystore::Keystore::sr25519_generate_new(
 			&*keystore_container.keystore(),
-			node_template_runtime::pallet_drand::KEY_TYPE,
+			drand_example_runtime::pallet_drand::KEY_TYPE,
 			Some("//Alice"),
 		)
 		.expect("Creating key with account Alice should succeed.");
@@ -231,9 +231,8 @@ pub fn new_full<
 		let client = client.clone();
 		let pool = transaction_pool.clone();
 
-		Box::new(move |deny_unsafe, _| {
-			let deps =
-				crate::rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe };
+		Box::new(move |_| {
+			let deps = crate::rpc::FullDeps { client: client.clone(), pool: pool.clone() };
 			crate::rpc::create_full(deps).map_err(Into::into)
 		})
 	};
