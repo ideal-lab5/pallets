@@ -40,6 +40,9 @@ use std::net::ToSocketAddrs;
 use std::sync::Mutex;
 use std::{sync::Arc, time::Duration};
 
+use crate::drand::PublicRandResponse;
+use prost::Message;
+
 /// Host runctions required for Substrate and Arkworks
 #[cfg(not(feature = "runtime-benchmarks"))]
 pub type HostFunctions =
@@ -435,24 +438,6 @@ fn multiaddress_resolve(address: &str) -> Result<Vec<Multiaddr>, Box<dyn std::er
 	Ok(resolved_addresses)
 }
 
-fn decode_raw_string(buf: &[u8]) -> Result<String, DecodeError> {
-	let mut buffer = buf;
-
-	// Decode the length delimiter (a varint indicating the length of the string)
-	let length = prost::encoding::decode_length_delimiter(&mut buffer)?;
-
-	// Extract the string bytes using the decoded length
-	if buffer.remaining() < length {
-		return Err(DecodeError::new("Buffer does not contain enough data"));
-	}
-
-	let string_bytes = buffer.copy_to_bytes(length);
-
-	log::info!("************************************************************ {:?}", string_bytes);
-
-	// Convert the string bytes to a UTF-8 string
-	Ok(String::from_utf8(string_bytes.to_vec()).unwrap())
-}
 pub struct GossipsubNetwork {
 	swarm: Swarm<GossipsubBehaviour>,
 }
@@ -509,22 +494,19 @@ impl GossipsubNetwork {
 					message_id,
 					message,
 				})) => {
+					let res = PublicRandResponse::decode(&*message.data).unwrap();
 					log::info!(
-						"********************************************************** Got message: '{}' with id: {} from peer: {:?}",
-						// &decode_raw_string(&message.data).unwrap(),
-						String::from_utf8_lossy(&message.data),
+						"Received pulse for round {:?} with message id: {} from peer: {:?}",
+						res.round,
 						message_id,
 						propagation_source
 					);
 				},
 				Some(SwarmEvent::NewListenAddr { address, .. }) => {
-					log::info!("********************************************************** Listening on {:?}", address);
+					log::info!(" Listening on {:?}", address);
 				},
 				Some(x) => {
-					log::info!(
-						"********************************************************** {:?}",
-						x
-					);
+					log::info!("Other: {:?}", x);
 				},
 				_ => {},
 			}

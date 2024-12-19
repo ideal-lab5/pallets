@@ -58,6 +58,7 @@ log = { version = "0.4.21", default-features = false }
 clap = "4.5.23"
 quote = "1.0.37"
 futures = "0.3.31"
+serde = "1.0.133"
 serde_json = { version = "1.0.133", default-features = true }
 jsonrpsee = "0.24.7"
 

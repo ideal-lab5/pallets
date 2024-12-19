@@ -24,6 +24,7 @@ futures = { workspace = true, features = ["thread-pool"] }
 serde_json.workspace = true
 jsonrpsee = { workspace = true, features = ["server"] }
 log = { workspace = true }
+serde.workspace = true
 # substrate client
 sc-cli.workspace = true
 sc-executor.workspace = true
@@ -67,13 +68,14 @@ frame-benchmarking-cli.workspace = true
 
 libp2p.workspace = true
 prost = "0.13.4"
-
+prost-types = "0.13.4"
 
 # Local Dependencies
 drand-example-runtime.workspace = true
 
 [build-dependencies]
 substrate-build-script-utils = "11.0.0"
+prost-build = "0.13.4"
 
 [features]
 default = ["std"]
