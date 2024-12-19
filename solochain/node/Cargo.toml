@@ -66,6 +66,9 @@ frame-benchmarking.workspace = true
 frame-benchmarking-cli.workspace = true
 
 libp2p.workspace = true
+prost = "0.13.4"
+
+
 # Local Dependencies
 drand-example-runtime.workspace = true
 

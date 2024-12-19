@@ -13,7 +13,7 @@ readme = "README.md"
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = ["derive"] }
 log = { workspace = true }
 scale-info = { version = "2.10.0", default-features = false, features = ["derive", "serde"] }
-frame-benchmarking = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false , optional = true }
+frame-benchmarking = { git = "https://github.com /ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false , optional = true }
 frame-support = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 frame-system = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }
 sp-io = { git = "https://github.com/ideal-lab5/polkadot-sdk.git", branch = "testing", default-features = false }

@@ -90,7 +90,7 @@ pallet-transaction-payment = { version = "38.0.0",  default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "38.0.0",  default-features = false }
 pallet-transaction-payment-rpc = "41.0.0"
 # The pallet in this template.
-pallet-drand = { path = "../../", default-features = false, features = ["host-arkworks"]}
+pallet-drand = { path = "../pallets/drand", default-features = false, features = ["host-arkworks"]}
 
 # primitives
 sp-api = { version = "34.0.0",  default-features = false }
@@ -136,7 +136,7 @@ sc-basic-authorship = "0.45.0"
 sc-utils = "14.0.0"
 
 # libp2p (uses same version as substrate)
-libp2p = { version = "0.52.4", features = ["gossipsub"] }
+libp2p = { version = "0.52.4", features = ["gossipsub", "noise", "tcp", "yamux"] }
 
 # Local Dependencies
 drand-example-runtime = { path = "runtime" }

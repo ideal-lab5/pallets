@@ -1,20 +1,30 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use drand_example_runtime::{self, opaque::Block, RuntimeApi};
-use futures::{FutureExt, StreamExt};
-use log;
 use frame_system::BlockHash;
+use futures::{FutureExt, StreamExt};
+use libp2p::{
+	gossipsub,
+	gossipsub::{
+		Behaviour as GossipsubBehaviour, Config as GossipsubConfig,
+		ConfigBuilder as GossipsubConfigBuilder, Event as GossipsubEvent, IdentTopic,
+		Message as GossipsubMessage, MessageAuthenticity, MessageId, PublishError,
+		SubscriptionError, Topic, TopicHash,
+	},
+	identity::Keypair,
+	swarm::{NetworkBehaviour, Swarm, SwarmEvent},
+	Transport,
+};
+use log;
+use prost::bytes::{Buf, BufMut};
+use prost::decode_length_delimiter;
+use prost::DecodeError;
 use sc_client_api::{Backend, BlockBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_grandpa::SharedVoterState;
 use sc_network::{
-	config::MultiaddrWithPeerId, 
-	multiaddr::Protocol, 
-	service::NetworkWorker, 
-	Multiaddr, 
-	PeerId,
-	config::notification_service,
-	types::ProtocolName,
+	config::notification_service, config::MultiaddrWithPeerId, multiaddr::Protocol,
+	service::NetworkWorker, types::ProtocolName, Multiaddr, PeerId,
 };
 use sc_network_types::{
 	multihash,
@@ -25,27 +35,10 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_runtime::traits::Block as BlockT;
-use std::{sync::Arc, time::Duration};
+use std::hash::DefaultHasher;
 use std::net::ToSocketAddrs;
-use libp2p::{
-	gossipsub::{
-		Behaviour as GossipsubBehaviour, 
-        Config as GossipsubConfig, 
-        ConfigBuilder as GossipsubConfigBuilder,
-        Event as GossipsubEvent,
-        Message as GossipsubMessage,
-        MessageAuthenticity,
-        PublishError,
-        SubscriptionError,
-        Topic,
-        TopicHash,
-		IdentTopic,
-	},
-	identity::Keypair,
-	swarm::NetworkBehaviour,
-};
-// use sc_network::Keypair;
 use std::sync::Mutex;
+use std::{sync::Arc, time::Duration};
 
 /// Host runctions required for Substrate and Arkworks
 #[cfg(not(feature = "runtime-benchmarks"))]
@@ -68,7 +61,6 @@ type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
 pub const DRAND_SWARM_ADDR: &str = "/dnsaddr/api.drand.sh";
-pub const PROTOCOL_NAME: &str = "/drand/pubsub/v0.0.0/";
 pub const DRAND_QUICKNET_PUBSUB_TOPIC: &str =
 	"/drand/pubsub/v0.0.0/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971";
 
@@ -235,7 +227,6 @@ pub fn new_full<
 		})?;
 
 	if config.offchain_worker.enabled {
-
 		// For testing purposes only: insert OCW key for Alice
 		sp_keystore::Keystore::sr25519_generate_new(
 			&*keystore_container.keystore(),
@@ -263,56 +254,28 @@ pub fn new_full<
 			.boxed(),
 		);
 
-		// Resolve DNS and connect to drand swarm
-		match multiaddress_resolve(DRAND_SWARM_ADDR) {
-			Ok(resolved_addresses) => {
-				for addr in resolved_addresses {
-					if let Some(peer_id) = PeerId::try_from_multiaddr(&addr) {
-						let multiaddr_with_peer_id =
-							MultiaddrWithPeerId { multiaddr: addr.clone(), peer_id };
-
-						match network.add_reserved_peer(multiaddr_with_peer_id) {
-							Ok(_) => {
-								log::info!("Connected to drand swarm: {}", addr);
-							},
-							Err(e) => log::warn!("Failed to connect to drand swarm: {}", e),
-						}
-					}
-				}
-			},
-			Err(e) => log::warn!("DNS resolution failed: {}", e),
-		}
-				
 		// configure gossipsub for the libp2p network
-		let local_identity: sc_network_types::ed25519::Keypair = config.network.node_key.clone().into_keypair()?;
+		let local_identity: sc_network_types::ed25519::Keypair =
+			config.network.node_key.clone().into_keypair()?;
 		let local_public = local_identity.public().to_peer_id();
 		let local_identity: libp2p::identity::ed25519::Keypair = local_identity.into();
-		
-		 // Create GossipSub configuration
-		 let config = GossipsubConfigBuilder::default()
-			.heartbeat_interval(Duration::from_secs(5))
-			.build()
-			.expect("Valid gossipsub config");
 
-		// Create GossipSub behaviour
-		let gossipsub = GossipsubBehaviour::new(
-			MessageAuthenticity::Signed(local_identity.clone()),
-			config,
-		).expect("Could not create GossipSub behaviour");
-		service.behaviour_mut()
+		let local_identity: Keypair = local_identity.into();
+		// TODO: handle error
+		let mut gossipsub = GossipsubNetwork::new(&local_identity).unwrap();
 
-		// let gossipsub = GossipsubNetwork::new(&local_identity.into());
-		// let (gossipsub_tx, mut gossipsub_rx) = sc_utils::mpsc::tracing_unbounded("beacon_sub", 10);
-		// task_manager.spawn_handle().spawn("drand-pubsub", None, async move {
-		// 	// gossipsub.subscribe(DRAND_QUICKNET_PUBSUB_TOPIC);
-		// 	// if let Err(e) = gossipsub.subscribe(DRAND_QUICKNET_PUBSUB_TOPIC) {
-		// 	// 	log::error!("Failed to run gossipsub: {:?}", e);
-		// 	// } else {
-		// 	// 	log::info!("Done?");
-		// 	// }				
-		// });
+		// Spawn the gossipsub network task
+		task_manager.spawn_handle().spawn(
+			"gossipsub-network",
+			None,
+			async move {
+				if let Err(e) = gossipsub.subscribe(DRAND_QUICKNET_PUBSUB_TOPIC).await {
+					log::error!("Failed to run gossipsub network: {:?}", e);
+				}
+			}
+			.boxed(),
+		);
 	}
-	
 
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
@@ -455,7 +418,7 @@ fn multiaddress_resolve(address: &str) -> Result<Vec<Multiaddr>, Box<dyn std::er
 		.ok_or("Invalid multiaddress")?;
 
 	// Resolve DNS
-	let socket_addrs = format!("{}:0", hostname).to_socket_addrs()?;
+	let socket_addrs = format!("{}:44544", hostname).to_socket_addrs()?;
 
 	for addr in socket_addrs {
 		let ip_multiaddr = Multiaddr::from(addr.ip()).with(Protocol::Tcp(addr.port()));
@@ -472,71 +435,116 @@ fn multiaddress_resolve(address: &str) -> Result<Vec<Multiaddr>, Box<dyn std::er
 	Ok(resolved_addresses)
 }
 
-/// GossipSub Network Extension
+fn decode_raw_string(buf: &[u8]) -> Result<String, DecodeError> {
+	let mut buffer = buf;
+
+	// Decode the length delimiter (a varint indicating the length of the string)
+	let length = prost::encoding::decode_length_delimiter(&mut buffer)?;
+
+	// Extract the string bytes using the decoded length
+	if buffer.remaining() < length {
+		return Err(DecodeError::new("Buffer does not contain enough data"));
+	}
+
+	let string_bytes = buffer.copy_to_bytes(length);
+
+	log::info!("************************************************************ {:?}", string_bytes);
+
+	// Convert the string bytes to a UTF-8 string
+	Ok(String::from_utf8(string_bytes.to_vec()).unwrap())
+}
 pub struct GossipsubNetwork {
-    inner: Arc<Mutex<Option<GossipsubBehaviour>>>,
-    local_peer_id: PeerId,
+	swarm: Swarm<GossipsubBehaviour>,
 }
 
 impl GossipsubNetwork {
-    pub fn new(local_key: &Keypair) -> Self {
-        let local_peer_id = local_key.public().to_peer_id();
-        
-        // Create GossipSub configuration
-        let config = GossipsubConfigBuilder::default()
-            .heartbeat_interval(Duration::from_secs(10))
-            .build()
-            .expect("Valid gossipsub config");
+	pub fn new(local_key: &Keypair) -> Result<Self, Box<dyn std::error::Error>> {
+		// Set the message authenticity - How we expect to publish messages
+		// Here we expect the publisher to sign the message with their key.
+		let message_authenticity = MessageAuthenticity::Signed(local_key.clone());
 
-        // Create GossipSub behaviour
-        let gossipsub = GossipsubBehaviour::new(
-            MessageAuthenticity::Signed(local_key.clone()),
-            config,
-        ).expect("Could not create GossipSub behaviour");
+		// Create the Swarm
+		// Create the transport with TCP
+		let transport = libp2p::tcp::tokio::Transport::new(libp2p::tcp::Config::default())
+			.upgrade(libp2p::core::upgrade::Version::V1)
+			.authenticate(libp2p::noise::Config::new(local_key)?)
+			.multiplex(libp2p::yamux::Config::default())
+			.boxed();
 
-        Self {
-            inner: Arc::new(Mutex::new(Some(gossipsub))),
-            local_peer_id: local_peer_id.into(),
-        }
-    }
+		// set default parameters for gossipsub
+		let gossipsub_config = libp2p::gossipsub::Config::default();
+		// build a gossipsub network behaviour
+		let mut gossipsub: libp2p::gossipsub::Behaviour =
+			libp2p::gossipsub::Behaviour::new(message_authenticity, gossipsub_config).unwrap();
 
-    /// Subscribe to a topic
-    pub fn subscribe(&self, topic_name: &str) -> Result<(), String> {
-        let topic = IdentTopic::new(topic_name);
-        log::info!("trying to subscribe to {:?}", topic);
-        let mut inner = self.inner.lock().map_err(|_| "Could not acquire lock")?;
-        if let Some(gossipsub) = inner.as_mut() {
-            gossipsub.subscribe(&topic)
-                .map_err(|e| format!("Subscription error: {:?}", e))?;
-            Ok(())
-        } else {
-            Err("GossipSub not initialized".to_string())
-        }
-    }
+		let mut swarm = libp2p::swarm::SwarmBuilder::without_executor(
+			transport,
+			gossipsub,
+			local_key.public().to_peer_id(),
+		)
+		.build();
+		// dig TXT _dnsaddr.api.drand.sh
+		let maddr1: libp2p::Multiaddr =
+			"/ip4/184.72.27.233/tcp/44544/p2p/12D3KooWBhAkxEn3XE7QanogjGrhyKBMC5GeM3JUTqz54HqS6VHG"
+				.parse()
+				.unwrap();
+		let maddr2: libp2p::Multiaddr = "/ip4/54.193.191.250/tcp/44544/p2p/12D3KooWQqDi3D3KLfDjWATQUUE4o5aSshwBFi9JM36wqEPMPD5y".parse().unwrap();
+		swarm.dial(maddr1)?;
+		swarm.dial(maddr2)?;
+		Ok(Self { swarm })
+	}
 
-    /// Publish a message to a topic
-    pub fn publish(&self, topic_name: &str, message: Vec<u8>) -> Result<(), String> {
-        let topic = IdentTopic::new(topic_name);
-        
-        let mut inner = self.inner.lock().map_err(|_| "Could not acquire lock")?;
-        if let Some(gossipsub) = inner.as_mut() {
-            gossipsub.publish(topic, message)
-                .map_err(|e| format!("Publish error: {:?}", e))?;
-            Ok(())
-        } else {
-            Err("GossipSub not initialized".to_string())
-        }
-    }
+	pub async fn subscribe(&mut self, topic_str: &str) -> Result<(), Box<dyn std::error::Error>> {
+		// Start listening on a random port
+		self.swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+
+		log::info!("Subscribing to gossipsub topic: {:?}", topic_str);
+		let topic = IdentTopic::new(topic_str);
+		self.swarm.behaviour_mut().subscribe(&topic)?;
+
+		loop {
+			match self.swarm.next().await {
+				Some(SwarmEvent::Behaviour(gossipsub::Event::Message {
+					propagation_source,
+					message_id,
+					message,
+				})) => {
+					log::info!(
+						"********************************************************** Got message: '{}' with id: {} from peer: {:?}",
+						// &decode_raw_string(&message.data).unwrap(),
+						String::from_utf8_lossy(&message.data),
+						message_id,
+						propagation_source
+					);
+				},
+				Some(SwarmEvent::NewListenAddr { address, .. }) => {
+					log::info!("********************************************************** Listening on {:?}", address);
+				},
+				Some(x) => {
+					log::info!(
+						"********************************************************** {:?}",
+						x
+					);
+				},
+				_ => {},
+			}
+		}
+	}
+
+	pub fn publish(
+		&mut self,
+		topic_str: &str,
+		data: Vec<u8>,
+	) -> Result<(), Box<dyn std::error::Error>> {
+		let topic = IdentTopic::new(topic_str);
+		self.swarm.behaviour_mut().publish(topic, data)?;
+		Ok(())
+	}
 }
-
-// /// Extension trait for network service
-// pub trait GossipsubExt {
-//     fn gossipsub(&self) -> Option<&GossipsubNetwork>;
-// }
 
 /*
 Ok, some notes, because this is getting pretty confusing
-I think I can add the gossipsub protocol by including it in the RequestResponse behaviours list, 
+I think I can add the gossipsub protocol by including it in the RequestResponse behaviours list,
 protocol > request_responses.rs line 277
 But, I'm not sure how to do that... or where that is even defined in the first place in this file, specifically.
 
